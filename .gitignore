@@ -1,0 +1,31 @@
+# Variables de entorno (NUNCA subir a GitHub)
+.env
+.env.local
+.env.production
+.env*.local
+
+# Dependencias
+node_modules/
+*/node_modules/
+
+# Builds
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# SQLite local (datos del restaurante, no van al repo)
+*.db
+*.sqlite
+*.sqlite3
+
+# Railway y otros
+.railway/

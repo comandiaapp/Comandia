@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Menu from './pages/Menu';
+import Mesas from './pages/Mesas';
 import Proximamente from './pages/Proximamente';
 import NotFound from './pages/NotFound';
 
@@ -60,7 +61,7 @@ function App() {
           path="/mesas"
           element={
             <ConLayout>
-              <Proximamente titulo="Mesas" />
+              <Mesas />
             </ConLayout>
           }
         />

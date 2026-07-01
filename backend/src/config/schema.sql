@@ -136,6 +136,33 @@ CREATE TABLE IF NOT EXISTS productos_modificadores (
   PRIMARY KEY (producto_id, grupo_id)
 );
 
+CREATE TABLE IF NOT EXISTS areas (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre VARCHAR(100) NOT NULL,
+  descripcion TEXT,
+  activa BOOLEAN NOT NULL DEFAULT true,
+  orden INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS mesas (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  area_id UUID REFERENCES areas(id) ON DELETE SET NULL,
+  numero VARCHAR(20) NOT NULL,
+  nombre VARCHAR(100),
+  capacidad INTEGER NOT NULL DEFAULT 4,
+  estado VARCHAR(20) NOT NULL DEFAULT 'libre'
+    CHECK (estado IN ('libre', 'ocupada', 'cuenta_pedida', 'reservada', 'bloqueada')),
+  posicion_x DECIMAL(5,2) NOT NULL DEFAULT 0,
+  posicion_y DECIMAL(5,2) NOT NULL DEFAULT 0,
+  activa BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (numero, restaurante_id)
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_sucursales_restaurante_id ON sucursales(restaurante_id);
 
@@ -157,3 +184,9 @@ CREATE INDEX IF NOT EXISTS idx_productos_disponible ON productos(disponible);
 CREATE INDEX IF NOT EXISTS idx_productos_activo ON productos(activo);
 
 CREATE INDEX IF NOT EXISTS idx_modificadores_grupo_restaurante_id ON modificadores_grupo(restaurante_id);
+
+CREATE INDEX IF NOT EXISTS idx_areas_restaurante_id ON areas(restaurante_id);
+
+CREATE INDEX IF NOT EXISTS idx_mesas_restaurante_id ON mesas(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_mesas_area_id ON mesas(area_id);
+CREATE INDEX IF NOT EXISTS idx_mesas_estado ON mesas(estado);

@@ -83,6 +83,43 @@ async function seedDatosEjemplo() {
     grupoId,
   ]);
 
+  const salonPrincipalId = uuidv4();
+  await pool.query('INSERT INTO areas (id, restaurante_id, nombre, orden) VALUES ($1, $2, $3, $4)', [
+    salonPrincipalId,
+    restauranteId,
+    'Salón Principal',
+    0,
+  ]);
+  console.log('  area "Salón Principal" creada');
+
+  const terrazaId = uuidv4();
+  await pool.query('INSERT INTO areas (id, restaurante_id, nombre, orden) VALUES ($1, $2, $3, $4)', [
+    terrazaId,
+    restauranteId,
+    'Terraza',
+    1,
+  ]);
+  console.log('  area "Terraza" creada');
+
+  const estadosSalon = { 1: 'ocupada', 2: 'ocupada', 3: 'ocupada', 4: 'cuenta_pedida' };
+  for (let numero = 1; numero <= 8; numero++) {
+    await pool.query(
+      `INSERT INTO mesas (id, restaurante_id, area_id, numero, capacidad, estado)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [uuidv4(), restauranteId, salonPrincipalId, String(numero), 4, estadosSalon[numero] || 'libre']
+    );
+  }
+  console.log('  8 mesas creadas en "Salón Principal"');
+
+  for (let numero = 1; numero <= 4; numero++) {
+    await pool.query(
+      `INSERT INTO mesas (id, restaurante_id, area_id, numero, capacidad, estado)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [uuidv4(), restauranteId, terrazaId, `T${numero}`, 6, 'libre']
+    );
+  }
+  console.log('  4 mesas creadas en "Terraza"');
+
   console.log('\nDatos de ejemplo insertados correctamente.');
 }
 

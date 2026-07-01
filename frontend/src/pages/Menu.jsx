@@ -4,6 +4,8 @@ import { Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
 
 import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
+import Campo from '../components/Campo';
+import BotonesFormulario from '../components/BotonesFormulario';
 import { useAuth } from '../context/AuthContext';
 import { getCategorias, crearCategoria, actualizarCategoria, eliminarCategoria } from '../utils/categorias';
 import { getProductos, crearProducto, actualizarProducto, eliminarProducto } from '../utils/productos';
@@ -518,36 +520,6 @@ function FormularioProducto({ producto, categorias, puedeVerCosto, onGuardar, on
 
       <BotonesFormulario onCancelar={onCancelar} guardando={guardando} />
     </form>
-  );
-}
-
-function Campo({ label, children }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function BotonesFormulario({ onCancelar, guardando }) {
-  return (
-    <div className="flex justify-end gap-3 pt-2">
-      <button
-        type="button"
-        onClick={onCancelar}
-        className="rounded-lg border border-[#333] px-4 py-2 text-sm font-medium text-[#a1a1aa] hover:text-white"
-      >
-        Cancelar
-      </button>
-      <button
-        type="submit"
-        disabled={guardando}
-        className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
-      >
-        {guardando ? 'Guardando...' : 'Guardar'}
-      </button>
-    </div>
   );
 }
 

@@ -74,6 +74,68 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS categorias (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre VARCHAR(100) NOT NULL,
+  descripcion TEXT,
+  imagen_url TEXT,
+  color VARCHAR(7),
+  orden INTEGER NOT NULL DEFAULT 0,
+  activa BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS productos (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  categoria_id UUID REFERENCES categorias(id) ON DELETE SET NULL,
+  nombre VARCHAR(255) NOT NULL,
+  descripcion TEXT,
+  imagen_url TEXT,
+  precio DECIMAL(12,2) NOT NULL,
+  costo DECIMAL(12,2),
+  tipo VARCHAR(20) NOT NULL DEFAULT 'producto'
+    CHECK (tipo IN ('producto', 'combo', 'modificador')),
+  disponible BOOLEAN NOT NULL DEFAULT true,
+  disponible_para VARCHAR(20) NOT NULL DEFAULT 'todos'
+    CHECK (disponible_para IN ('todos', 'mesa', 'delivery', 'barra')),
+  tiempo_preparacion INTEGER,
+  orden INTEGER NOT NULL DEFAULT 0,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS modificadores_grupo (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre VARCHAR(100) NOT NULL,
+  requerido BOOLEAN NOT NULL DEFAULT false,
+  seleccion_multiple BOOLEAN NOT NULL DEFAULT false,
+  minimo INTEGER NOT NULL DEFAULT 0,
+  maximo INTEGER NOT NULL DEFAULT 1,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS modificadores_opciones (
+  id UUID PRIMARY KEY,
+  grupo_id UUID NOT NULL REFERENCES modificadores_grupo(id) ON DELETE CASCADE,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre VARCHAR(100) NOT NULL,
+  precio_extra DECIMAL(12,2) NOT NULL DEFAULT 0,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  orden INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS productos_modificadores (
+  producto_id UUID NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+  grupo_id UUID NOT NULL REFERENCES modificadores_grupo(id) ON DELETE CASCADE,
+  PRIMARY KEY (producto_id, grupo_id)
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_sucursales_restaurante_id ON sucursales(restaurante_id);
 
@@ -85,3 +147,13 @@ CREATE INDEX IF NOT EXISTS idx_jornadas_estado ON jornadas(estado);
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_restaurante_id ON audit_log(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_categorias_restaurante_id ON categorias(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_categorias_activa ON categorias(activa);
+
+CREATE INDEX IF NOT EXISTS idx_productos_restaurante_id ON productos(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_productos_categoria_id ON productos(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_productos_disponible ON productos(disponible);
+CREATE INDEX IF NOT EXISTS idx_productos_activo ON productos(activo);
+
+CREATE INDEX IF NOT EXISTS idx_modificadores_grupo_restaurante_id ON modificadores_grupo(restaurante_id);

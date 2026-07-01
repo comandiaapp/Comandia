@@ -10,6 +10,11 @@ export async function getPlano() {
   return data.datos.plano;
 }
 
+export async function getMesa(id) {
+  const { data } = await api.get(`/api/mesas/${id}`);
+  return data.datos.mesa;
+}
+
 export async function crearMesa(datos) {
   const { data } = await api.post('/api/mesas', datos);
   return data.datos.mesa;

@@ -163,6 +163,56 @@ CREATE TABLE IF NOT EXISTS mesas (
   UNIQUE (numero, restaurante_id)
 );
 
+CREATE TABLE IF NOT EXISTS pedidos (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  sucursal_id UUID REFERENCES sucursales(id),
+  mesa_id UUID REFERENCES mesas(id) ON DELETE SET NULL,
+  jornada_id UUID REFERENCES jornadas(id) ON DELETE SET NULL,
+  usuario_id UUID NOT NULL REFERENCES usuarios(id),
+  numero SERIAL,
+  tipo VARCHAR(20) NOT NULL DEFAULT 'mesa'
+    CHECK (tipo IN ('mesa', 'barra', 'delivery', 'take_away')),
+  estado VARCHAR(20) NOT NULL DEFAULT 'abierto'
+    CHECK (estado IN ('abierto', 'enviado_cocina', 'listo', 'cuenta_pedida', 'pagado', 'cancelado')),
+  notas TEXT,
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  descuento DECIMAL(12,2) NOT NULL DEFAULT 0,
+  impuesto DECIMAL(12,2) NOT NULL DEFAULT 0,
+  propina DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  pagado_con VARCHAR(20)
+    CHECK (pagado_con IS NULL OR pagado_con IN ('efectivo', 'tarjeta', 'qr', 'mixto')),
+  monto_recibido DECIMAL(12,2),
+  cambio DECIMAL(12,2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS pedido_items (
+  id UUID PRIMARY KEY,
+  pedido_id UUID NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  producto_id UUID REFERENCES productos(id) ON DELETE SET NULL,
+  nombre_producto VARCHAR(255) NOT NULL,
+  precio_unitario DECIMAL(12,2) NOT NULL,
+  cantidad INTEGER NOT NULL DEFAULT 1,
+  subtotal DECIMAL(12,2) NOT NULL,
+  notas TEXT,
+  estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'
+    CHECK (estado IN ('pendiente', 'en_preparacion', 'listo', 'entregado', 'cancelado')),
+  enviado_cocina_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS pedido_item_modificadores (
+  id UUID PRIMARY KEY,
+  pedido_item_id UUID NOT NULL REFERENCES pedido_items(id) ON DELETE CASCADE,
+  modificador_opcion_id UUID REFERENCES modificadores_opciones(id),
+  nombre_opcion VARCHAR(100),
+  precio_extra DECIMAL(12,2) NOT NULL DEFAULT 0
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_sucursales_restaurante_id ON sucursales(restaurante_id);
 
@@ -190,3 +240,20 @@ CREATE INDEX IF NOT EXISTS idx_areas_restaurante_id ON areas(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_mesas_restaurante_id ON mesas(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_mesas_area_id ON mesas(area_id);
 CREATE INDEX IF NOT EXISTS idx_mesas_estado ON mesas(estado);
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_restaurante_id ON pedidos(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_mesa_id ON pedidos(mesa_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos(estado);
+CREATE INDEX IF NOT EXISTS idx_pedidos_jornada_id ON pedidos(jornada_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_created_at ON pedidos(created_at);
+
+-- Garantiza a nivel de base de datos que una mesa no pueda tener dos
+-- pedidos activos al mismo tiempo, incluso si dos peticiones concurrentes
+-- intentan crear uno (dos clicks casi simultáneos en "Abrir mesa").
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pedidos_mesa_activo
+  ON pedidos(mesa_id)
+  WHERE estado IN ('abierto', 'enviado_cocina', 'listo', 'cuenta_pedida');
+
+CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido_id ON pedido_items(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_pedido_items_estado ON pedido_items(estado);
+CREATE INDEX IF NOT EXISTS idx_pedido_items_restaurante_id ON pedido_items(restaurante_id);

@@ -1,0 +1,228 @@
+const { v4: uuidv4 } = require('uuid');
+
+const pedidoModel = require('../models/pedidoModel');
+const { ok, error } = require('../utils/respuestas');
+
+const TIPOS_VALIDOS = ['mesa', 'barra', 'delivery', 'take_away'];
+const METODOS_PAGO_VALIDOS = ['efectivo', 'tarjeta', 'qr', 'mixto'];
+
+async function crear(req, res) {
+  const { mesa_id, sucursal_id, jornada_id, tipo, notas } = req.body;
+
+  if (tipo !== undefined && !TIPOS_VALIDOS.includes(tipo)) {
+    return error(res, `Tipo inválido. Valores permitidos: ${TIPOS_VALIDOS.join(', ')}`, 400);
+  }
+
+  try {
+    if (mesa_id) {
+      const existente = await pedidoModel.obtenerPorMesa(mesa_id, req.usuario.restauranteId);
+      if (existente) {
+        const completo = await pedidoModel.obtenerPorId(existente.id, req.usuario.restauranteId);
+        return ok(res, { pedido: completo });
+      }
+    }
+
+    const pedido = await pedidoModel.crear({
+      id: uuidv4(),
+      restaurante_id: req.usuario.restauranteId,
+      sucursal_id: sucursal_id ?? req.usuario.sucursalId,
+      mesa_id,
+      jornada_id,
+      usuario_id: req.usuario.userId,
+      tipo,
+      notas,
+    });
+
+    return ok(res, { pedido: { ...pedido, items: [] } }, 201);
+  } catch (err) {
+    if (err.code === '23505' && mesa_id) {
+      // Otra petición concurrente ganó la carrera y ya creó el pedido
+      // activo de esta mesa (ej. dos clicks casi simultáneos en "Abrir
+      // mesa"). Devolvemos ese pedido en vez de fallar.
+      try {
+        const existente = await pedidoModel.obtenerPorMesa(mesa_id, req.usuario.restauranteId);
+        if (existente) {
+          const completo = await pedidoModel.obtenerPorId(existente.id, req.usuario.restauranteId);
+          return ok(res, { pedido: completo });
+        }
+      } catch (err2) {
+        console.error('Error al recuperar el pedido tras conflicto de concurrencia:', err2);
+      }
+    }
+    if (err.code === '23503') {
+      return error(res, 'La mesa especificada no existe', 400);
+    }
+    console.error('Error al crear pedido:', err);
+    return error(res, 'No se pudo crear el pedido', 500);
+  }
+}
+
+async function obtenerPorMesa(req, res) {
+  try {
+    const resumen = await pedidoModel.obtenerPorMesa(req.params.mesaId, req.usuario.restauranteId);
+    if (!resumen) {
+      return error(res, 'No hay un pedido activo para esta mesa', 404);
+    }
+    const pedido = await pedidoModel.obtenerPorId(resumen.id, req.usuario.restauranteId);
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al obtener el pedido de la mesa:', err);
+    return error(res, 'No se pudo obtener el pedido', 500);
+  }
+}
+
+async function obtenerPorId(req, res) {
+  try {
+    const pedido = await pedidoModel.obtenerPorId(req.params.id, req.usuario.restauranteId);
+    if (!pedido) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al obtener el pedido:', err);
+    return error(res, 'No se pudo obtener el pedido', 500);
+  }
+}
+
+async function listar(req, res) {
+  try {
+    const { estado, fecha, mesa_id } = req.query;
+    const filtros = {};
+    if (estado !== undefined) filtros.estado = estado;
+    if (fecha !== undefined) filtros.fecha = fecha;
+    if (mesa_id !== undefined) filtros.mesa_id = mesa_id;
+
+    const pedidos = await pedidoModel.obtenerTodos(req.usuario.restauranteId, filtros);
+    return ok(res, { pedidos });
+  } catch (err) {
+    console.error('Error al listar pedidos:', err);
+    return error(res, 'No se pudieron obtener los pedidos', 500);
+  }
+}
+
+async function agregarItem(req, res) {
+  const { producto_id, nombre_producto, precio_unitario, cantidad, notas, modificadores } = req.body;
+
+  if (!nombre_producto || precio_unitario === undefined || precio_unitario === null) {
+    return error(res, 'El nombre y el precio del producto son obligatorios', 400);
+  }
+
+  try {
+    const resultado = await pedidoModel.agregarItem(
+      req.params.id,
+      { id: uuidv4(), producto_id, nombre_producto, precio_unitario, cantidad, notas, modificadores },
+      req.usuario.restauranteId
+    );
+
+    if (!resultado) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+
+    return ok(res, resultado, 201);
+  } catch (err) {
+    console.error('Error al agregar el item:', err);
+    return error(res, 'No se pudo agregar el producto al pedido', 500);
+  }
+}
+
+async function actualizarItem(req, res) {
+  try {
+    const resultado = await pedidoModel.actualizarItem(req.params.itemId, req.body, req.usuario.restauranteId);
+    if (!resultado) {
+      return error(res, 'Item no encontrado', 404);
+    }
+    return ok(res, resultado);
+  } catch (err) {
+    console.error('Error al actualizar el item:', err);
+    return error(res, 'No se pudo actualizar el item', 500);
+  }
+}
+
+async function eliminarItem(req, res) {
+  try {
+    const resultado = await pedidoModel.eliminarItem(req.params.itemId, req.params.id, req.usuario.restauranteId);
+    if (!resultado) {
+      return error(res, 'Item no encontrado', 404);
+    }
+    return ok(res, resultado);
+  } catch (err) {
+    console.error('Error al eliminar el item:', err);
+    return error(res, 'No se pudo eliminar el item', 500);
+  }
+}
+
+async function enviarCocina(req, res) {
+  try {
+    const pedido = await pedidoModel.enviarCocina(req.params.id, req.usuario.restauranteId);
+    if (!pedido) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al enviar el pedido a cocina:', err);
+    return error(res, 'No se pudo enviar el pedido a cocina', 500);
+  }
+}
+
+async function pedirCuenta(req, res) {
+  try {
+    const pedido = await pedidoModel.pedirCuenta(req.params.id, req.usuario.restauranteId);
+    if (!pedido) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al pedir la cuenta:', err);
+    return error(res, 'No se pudo pedir la cuenta', 500);
+  }
+}
+
+async function cobrar(req, res) {
+  const { pagado_con, monto_recibido, descuento, impuesto, propina } = req.body;
+
+  if (!pagado_con || !METODOS_PAGO_VALIDOS.includes(pagado_con)) {
+    return error(res, `Método de pago inválido. Valores permitidos: ${METODOS_PAGO_VALIDOS.join(', ')}`, 400);
+  }
+
+  try {
+    const pedido = await pedidoModel.cobrar(
+      req.params.id,
+      { pagado_con, monto_recibido, descuento, impuesto, propina },
+      req.usuario.restauranteId
+    );
+    if (!pedido) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al cobrar el pedido:', err);
+    return error(res, 'No se pudo cobrar el pedido', 500);
+  }
+}
+
+async function cancelar(req, res) {
+  try {
+    const pedido = await pedidoModel.cancelar(req.params.id, req.usuario.restauranteId);
+    if (!pedido) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al cancelar el pedido:', err);
+    return error(res, 'No se pudo cancelar el pedido', 500);
+  }
+}
+
+module.exports = {
+  crear,
+  obtenerPorMesa,
+  obtenerPorId,
+  listar,
+  agregarItem,
+  actualizarItem,
+  eliminarItem,
+  enviarCocina,
+  pedirCuenta,
+  cobrar,
+  cancelar,
+};

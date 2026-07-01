@@ -6,7 +6,6 @@ router.use('/auth', require('./auth'));
 router.use('/categorias', require('./categorias'));
 router.use('/', require('./productos'));
 router.use('/', require('./mesas'));
-
-// Las rutas de cada módulo (pedidos, etc.) se montarán aquí
+router.use('/', require('./pedidos'));
 
 module.exports = router;

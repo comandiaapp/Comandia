@@ -143,7 +143,7 @@ async function initDB() {
       continue;
     }
 
-    const indice = statement.match(/CREATE INDEX IF NOT EXISTS (\w+)/i);
+    const indice = statement.match(/CREATE (?:UNIQUE )?INDEX IF NOT EXISTS (\w+)/i);
     if (indice) {
       console.log(`  indice "${indice[1]}" listo`);
     }

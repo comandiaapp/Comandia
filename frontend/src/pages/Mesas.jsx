@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import BotonesFormulario from '../components/BotonesFormulario';
+import POSDrawer from '../components/POSDrawer';
 import { useAuth } from '../context/AuthContext';
 import {
   getPlano,
@@ -60,6 +61,8 @@ function tienePosicionGuardada(mesa) {
 function Mesas() {
   const { usuario } = useAuth();
   const esGestor = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
+
+  const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null);
 
   const [vista, setVista] = useState('plano'); // 'plano' | 'lista'
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -141,6 +144,17 @@ function Mesas() {
     } catch {
       toast.error('No se pudo cambiar el estado de la mesa');
     }
+  }
+
+  function handleAbrirPedido(mesa) {
+    setModalMesaAccion(null);
+    setMesaSeleccionadaId(mesa.id);
+  }
+
+  function handleCerrarDrawer() {
+    setMesaSeleccionadaId(null);
+    cargarPlano();
+    if (vista === 'lista') cargarMesas();
   }
 
   function handleDragEnd(event) {
@@ -530,6 +544,7 @@ function Mesas() {
           mesa={modalMesaAccion}
           onClose={() => setModalMesaAccion(null)}
           onCambiarEstado={(estado) => handleCambiarEstado(modalMesaAccion, estado)}
+          onAbrirPedido={handleAbrirPedido}
         />
       )}
 
@@ -549,6 +564,8 @@ function Mesas() {
           <GestionAreas areas={areas} onGuardar={handleGuardarArea} />
         </Modal>
       )}
+
+      <POSDrawer mesaId={mesaSeleccionadaId} onClose={handleCerrarDrawer} />
     </div>
   );
 }
@@ -676,7 +693,7 @@ function TarjetaMesa({ mesa, onClick }) {
   );
 }
 
-function ModalAccionMesa({ mesa, onClose, onCambiarEstado }) {
+function ModalAccionMesa({ mesa, onClose, onCambiarEstado, onAbrirPedido }) {
   if (mesa.estado === 'libre') {
     return (
       <Modal titulo={`Mesa ${mesa.numero}`} onClose={onClose}>
@@ -691,7 +708,7 @@ function ModalAccionMesa({ mesa, onClose, onCambiarEstado }) {
           </button>
           <button
             type="button"
-            onClick={() => onCambiarEstado('ocupada')}
+            onClick={() => onAbrirPedido(mesa)}
             className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
           >
             Abrir mesa
@@ -708,10 +725,10 @@ function ModalAccionMesa({ mesa, onClose, onCambiarEstado }) {
           <>
             <button
               type="button"
-              onClick={() => toast('El módulo de pedidos llega pronto')}
+              onClick={() => onAbrirPedido(mesa)}
               className="w-full rounded-lg border border-[#333] px-4 py-2 text-left text-sm text-white hover:bg-[#2a2a2a]"
             >
-              Ver pedido
+              Ver/agregar pedido
             </button>
             <button
               type="button"

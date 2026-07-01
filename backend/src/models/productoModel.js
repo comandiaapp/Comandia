@@ -86,7 +86,52 @@ async function obtenerTodos(restauranteId, filtros = {}) {
     `SELECT * FROM productos WHERE ${condiciones.join(' AND ')} ORDER BY orden ASC, nombre ASC`,
     valores
   );
-  return rows;
+
+  if (rows.length === 0) {
+    return rows;
+  }
+
+  // El POS necesita saber, por producto, si tiene grupos de modificadores
+  // (para decidir si abre el modal de personalización). Se trae en un solo
+  // query adicional en lugar de uno por producto.
+  const idsProductos = rows.map((producto) => producto.id);
+  const { rows: modificadoresPorProducto } = await pool.query(
+    `SELECT pm.producto_id, g.id, g.nombre, g.requerido, g.seleccion_multiple, g.minimo, g.maximo,
+            COALESCE(
+              jsonb_agg(
+                jsonb_build_object('id', o.id, 'nombre', o.nombre, 'precio_extra', o.precio_extra)
+                ORDER BY o.orden ASC
+              ) FILTER (WHERE o.id IS NOT NULL),
+              '[]'::jsonb
+            ) AS opciones
+     FROM productos_modificadores pm
+     JOIN modificadores_grupo g ON g.id = pm.grupo_id AND g.activo = true
+     LEFT JOIN modificadores_opciones o ON o.grupo_id = g.id AND o.activo = true
+     WHERE pm.producto_id = ANY($1::uuid[])
+     GROUP BY pm.producto_id, g.id
+     ORDER BY g.nombre ASC`,
+    [idsProductos]
+  );
+
+  const modificadoresPorId = new Map();
+  for (const fila of modificadoresPorProducto) {
+    const lista = modificadoresPorId.get(fila.producto_id) || [];
+    lista.push({
+      id: fila.id,
+      nombre: fila.nombre,
+      requerido: fila.requerido,
+      seleccion_multiple: fila.seleccion_multiple,
+      minimo: fila.minimo,
+      maximo: fila.maximo,
+      opciones: fila.opciones,
+    });
+    modificadoresPorId.set(fila.producto_id, lista);
+  }
+
+  return rows.map((producto) => ({
+    ...producto,
+    modificadores: modificadoresPorId.get(producto.id) || [],
+  }));
 }
 
 async function obtenerPorId(id, restauranteId) {

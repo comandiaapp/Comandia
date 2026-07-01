@@ -123,23 +123,24 @@ async function eliminar(id, restauranteId) {
   return rows[0] || null;
 }
 
-// Busca el número más alto usado alguna vez en el patrón "WH-N" para este
-// restaurante (incluyendo mesas eliminadas, para nunca reutilizar un
+// Busca el número más alto usado alguna vez en el patrón "Domicilio-N" para
+// este restaurante (incluyendo mesas eliminadas, para nunca reutilizar un
 // número ya usado) y devuelve el siguiente correlativo.
 async function obtenerSiguienteNumeroRemoto(restauranteId) {
-  const { rows } = await pool.query(`SELECT numero FROM mesas WHERE restaurante_id = $1 AND numero LIKE 'WH-%'`, [
-    restauranteId,
-  ]);
+  const { rows } = await pool.query(
+    `SELECT numero FROM mesas WHERE restaurante_id = $1 AND numero LIKE 'Domicilio-%'`,
+    [restauranteId]
+  );
 
   let maximo = 0;
   for (const { numero } of rows) {
-    const coincidencia = /^WH-(\d+)$/.exec(numero.trim());
+    const coincidencia = /^Domicilio-(\d+)$/.exec(numero.trim());
     if (coincidencia) {
       maximo = Math.max(maximo, parseInt(coincidencia[1], 10));
     }
   }
 
-  return `WH-${maximo + 1}`;
+  return `Domicilio-${maximo + 1}`;
 }
 
 async function contarActivasEnArea(restauranteId, areaId) {

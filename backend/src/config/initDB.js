@@ -133,9 +133,9 @@ async function seedDatosEjemplo() {
   await pool.query(
     `INSERT INTO mesas (id, restaurante_id, area_id, numero, capacidad)
      VALUES ($1, $2, $3, $4, $5)`,
-    [uuidv4(), restauranteId, areaRemotaId, 'WH-1', 1]
+    [uuidv4(), restauranteId, areaRemotaId, 'Domicilio-1', 1]
   );
-  console.log('  1 mesa remota de ejemplo creada ("WH-1")');
+  console.log('  1 mesa remota de ejemplo creada ("Domicilio-1")');
 
   console.log('\nDatos de ejemplo insertados correctamente.');
 }

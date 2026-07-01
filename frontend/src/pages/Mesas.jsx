@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw, Phone } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw, Phone, Clock } from 'lucide-react';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors } from '@dnd-kit/core';
 
 import Modal from '../components/Modal';
@@ -23,6 +23,7 @@ import {
   crearArea,
   actualizarArea,
 } from '../utils/mesas';
+import { getPedidoPorMesa } from '../utils/pedidos';
 
 const COLOR_ESTADO = {
   libre: '#22c55e',
@@ -43,10 +44,13 @@ const LABEL_ESTADO = {
 const ESTADOS = Object.keys(COLOR_ESTADO);
 
 const CANVAS_WIDTH = 1200;
-const CANVAS_HEIGHT = 700;
 const GRID_SIZE = 100;
 const CLAVE_MODO_CUADRICULA = 'comandia_mesas_modo_cuadricula';
 const LIMITE_MESAS_REMOTAS = 20;
+
+const ALTURAS_CANVAS = { compacto: 300, normal: 500, grande: 700 };
+const LABEL_TAMANO_CANVAS = { compacto: 'Compacto', normal: 'Normal', grande: 'Grande' };
+const CLAVE_TAMANO_CANVAS = 'comandia_mesas_tamano_canvas';
 
 function clamp(valor, min, max) {
   return Math.min(max, Math.max(min, valor));
@@ -54,6 +58,10 @@ function clamp(valor, min, max) {
 
 function redondearACuadricula(valor) {
   return Math.round(valor / GRID_SIZE) * GRID_SIZE;
+}
+
+function formatearHora(fechaIso) {
+  return new Date(fechaIso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function tienePosicionGuardada(mesa) {
@@ -69,6 +77,11 @@ function Mesas() {
   const [vista, setVista] = useState('plano'); // 'plano' | 'lista'
   const [modoEdicion, setModoEdicion] = useState(false);
   const [modoCuadricula, setModoCuadricula] = useState(() => localStorage.getItem(CLAVE_MODO_CUADRICULA) === 'true');
+  const [tamanoCanvas, setTamanoCanvas] = useState(() => {
+    const guardado = localStorage.getItem(CLAVE_TAMANO_CANVAS);
+    return guardado && ALTURAS_CANVAS[guardado] ? guardado : 'normal';
+  });
+  const alturaCanvas = ALTURAS_CANVAS[tamanoCanvas];
   const [areas, setAreas] = useState([]);
   const [areaActiva, setAreaActiva] = useState('');
 
@@ -122,7 +135,18 @@ function Mesas() {
   const cargarMesasRemotas = useCallback(async (areaRemotaId) => {
     if (!areaRemotaId) return;
     try {
-      setMesasRemotas(await getMesas(areaRemotaId));
+      const lista = await getMesas(areaRemotaId);
+      const conHoraPedido = await Promise.all(
+        lista.map(async (mesa) => {
+          try {
+            const pedido = await getPedidoPorMesa(mesa.id);
+            return { ...mesa, horaPedido: pedido.created_at };
+          } catch {
+            return { ...mesa, horaPedido: null };
+          }
+        })
+      );
+      setMesasRemotas(conHoraPedido);
     } catch {
       toast.error('No se pudieron cargar las mesas remotas');
     }
@@ -142,7 +166,7 @@ function Mesas() {
   useEffect(() => {
     if (vista !== 'plano' || !areaRemota) return undefined;
     cargarMesasRemotas(areaRemota.id);
-    const intervalo = setInterval(() => cargarMesasRemotas(areaRemota.id), 30000);
+    const intervalo = setInterval(() => cargarMesasRemotas(areaRemota.id), 60000);
     return () => clearInterval(intervalo);
   }, [vista, areaRemota?.id, cargarMesasRemotas]);
 
@@ -157,6 +181,10 @@ function Mesas() {
   useEffect(() => {
     localStorage.setItem(CLAVE_MODO_CUADRICULA, String(modoCuadricula));
   }, [modoCuadricula]);
+
+  useEffect(() => {
+    localStorage.setItem(CLAVE_TAMANO_CANVAS, tamanoCanvas);
+  }, [tamanoCanvas]);
 
   async function handleCambiarEstado(mesa, estado) {
     try {
@@ -204,7 +232,7 @@ function Mesas() {
     if (!mesa) return;
 
     let xPx = (Number(mesa.posicion_x) / 100) * CANVAS_WIDTH + delta.x;
-    let yPx = (Number(mesa.posicion_y) / 100) * CANVAS_HEIGHT + delta.y;
+    let yPx = (Number(mesa.posicion_y) / 100) * alturaCanvas + delta.y;
 
     if (modoCuadricula) {
       xPx = redondearACuadricula(xPx);
@@ -212,7 +240,7 @@ function Mesas() {
     }
 
     const nuevaX = clamp((xPx / CANVAS_WIDTH) * 100, 0, 100);
-    const nuevaY = clamp((yPx / CANVAS_HEIGHT) * 100, 0, 100);
+    const nuevaY = clamp((yPx / alturaCanvas) * 100, 0, 100);
 
     setPlano((prev) =>
       prev.map((area) => ({
@@ -385,6 +413,24 @@ function Mesas() {
             </div>
           )}
 
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-xs text-[#a1a1aa]">Tamaño del plano:</span>
+            <div className="flex rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-1">
+              {Object.keys(ALTURAS_CANVAS).map((clave) => (
+                <button
+                  key={clave}
+                  type="button"
+                  onClick={() => setTamanoCanvas(clave)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium ${
+                    tamanoCanvas === clave ? 'bg-[#f97316] text-white' : 'text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  {LABEL_TAMANO_CANVAS[clave]}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {modoEdicion && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <p className="flex items-center gap-2 text-sm text-[#f97316]">
@@ -430,7 +476,7 @@ function Mesas() {
             <Spinner />
           ) : modoEdicion ? (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-              <CanvasPlano mesas={mesasParaEditar} editable cuadricula={modoCuadricula} />
+              <CanvasPlano mesas={mesasParaEditar} editable cuadricula={modoCuadricula} altura={alturaCanvas} />
             </DndContext>
           ) : (
             <div className="space-y-8">
@@ -449,6 +495,7 @@ function Mesas() {
                         <CanvasPlano
                           mesas={mesasPosicionadas}
                           editable={false}
+                          altura={alturaCanvas}
                           onClickMesa={(mesa) => setModalMesaAccion(mesa)}
                         />
                       </div>
@@ -498,9 +545,9 @@ function Mesas() {
                 onClick={handleCrearMesaRemota}
                 disabled={creandoMesaRemota || mesasRemotas.length >= LIMITE_MESAS_REMOTAS}
                 title="Nueva mesa remota"
-                className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#333] text-[#a1a1aa] hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex aspect-square w-[167px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#333] text-[#a1a1aa] hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Plus size={20} />
+                <Plus size={24} />
               </button>
             </div>
 
@@ -650,14 +697,14 @@ const FONDO_CUADRICULA = {
   backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
 };
 
-function CanvasPlano({ mesas, editable, cuadricula, onClickMesa }) {
+function CanvasPlano({ mesas, editable, cuadricula, altura, onClickMesa }) {
   return (
-    <div className="overflow-auto rounded-xl border border-[#2a2a2a]">
+    <div className="overflow-auto rounded-xl border border-[#2a2a2a]" style={{ maxHeight: altura }}>
       <div
         className="relative"
         style={{
           width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
+          height: altura,
           backgroundColor: '#1a1a1a',
           ...(cuadricula ? FONDO_CUADRICULA : FONDO_PUNTOS),
         }}
@@ -769,16 +816,24 @@ function TarjetaMesaRemota({ mesa, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 transition-transform hover:scale-105"
+      className="flex aspect-square w-[167px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
       style={{ borderColor: color, backgroundColor: '#1a1a2e' }}
     >
-      <Phone size={12} className="text-[#a1a1aa]" />
-      <span className="text-sm font-bold text-white">{mesa.numero}</span>
+      <Phone size={14} className="text-[#a1a1aa]" />
+      <span className="max-w-full truncate text-2xl font-bold text-white">{mesa.numero}</span>
+      <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">
+        <Users size={12} />
+        {mesa.capacidad}
+      </span>
       <span
-        className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase"
+        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
         style={{ color, backgroundColor: `${color}33` }}
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}
+      </span>
+      <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
+        <Clock size={10} />
+        {mesa.horaPedido ? formatearHora(mesa.horaPedido) : 'Sin pedido'}
       </span>
     </button>
   );

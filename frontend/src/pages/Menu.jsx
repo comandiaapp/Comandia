@@ -9,11 +9,12 @@ import BotonesFormulario from '../components/BotonesFormulario';
 import { useAuth } from '../context/AuthContext';
 import { getCategorias, crearCategoria, actualizarCategoria, eliminarCategoria } from '../utils/categorias';
 import { getProductos, crearProducto, actualizarProducto, eliminarProducto } from '../utils/productos';
+import { formatearPrecio } from '../utils/formato';
 
 const TIPOS_PRODUCTO = [
   { value: 'producto', label: 'Producto' },
   { value: 'combo', label: 'Combo' },
-  { value: 'modificador', label: 'Modificador' },
+  { value: 'adicionales', label: 'Adicionales' },
 ];
 
 const DISPONIBLE_PARA = [
@@ -292,7 +293,7 @@ function Menu() {
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-white">{producto.nombre}</h3>
                         <span className="whitespace-nowrap font-bold text-[#f97316]">
-                          ${Number(producto.precio).toFixed(2)}
+                          {formatearPrecio(producto.precio)}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-[#a1a1aa]">{categoria?.nombre || 'Sin categoría'}</p>
@@ -418,7 +419,12 @@ function FormularioProducto({ producto, categorias, puedeVerCosto, onGuardar, on
   const [precio, setPrecio] = useState(producto?.precio ?? '');
   const [costo, setCosto] = useState(producto?.costo ?? '');
   const [categoriaId, setCategoriaId] = useState(producto?.categoria_id || '');
-  const [tipo, setTipo] = useState(producto?.tipo || 'producto');
+  // 'modificador' es el valor heredado de productos creados antes de
+  // renombrar esta opción a "Adicionales"; se normaliza para que el
+  // select siempre muestre la opción vigente.
+  const [tipo, setTipo] = useState(
+    producto?.tipo === 'modificador' ? 'adicionales' : producto?.tipo || 'producto'
+  );
   const [disponiblePara, setDisponiblePara] = useState(producto?.disponible_para || 'todos');
   const [tiempoPreparacion, setTiempoPreparacion] = useState(producto?.tiempo_preparacion ?? '');
   const [guardando, setGuardando] = useState(false);

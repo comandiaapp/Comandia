@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { getMesa } from '../utils/mesas';
 import { getCategorias } from '../utils/categorias';
 import { getProductos } from '../utils/productos';
+import { formatearPrecio } from '../utils/formato';
 import {
   crearPedido,
   agregarItemPedido,
@@ -298,7 +299,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
         <div className="space-y-3 border-t border-[#2a2a2a] p-4">
           <div className="flex justify-between text-sm text-[#a1a1aa]">
             <span>Subtotal</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>{formatearPrecio(subtotal)}</span>
           </div>
 
           <div className="flex items-center justify-between gap-2 text-sm">
@@ -346,7 +347,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
 
           <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
             <span className="text-base font-semibold text-white">TOTAL</span>
-            <span className="text-2xl font-bold text-[#f97316]">${totalCalculado.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-[#f97316]">{formatearPrecio(totalCalculado)}</span>
           </div>
 
           <div className="space-y-2 pt-1">
@@ -494,8 +495,8 @@ function ItemPedido({ item, onCantidad, onEliminar }) {
           </button>
         </div>
         <div className="text-right text-sm">
-          <p className="text-[#a1a1aa]">${Number(item.precio_unitario).toFixed(2)} c/u</p>
-          <p className="font-semibold text-white">${Number(item.subtotal).toFixed(2)}</p>
+          <p className="text-[#a1a1aa]">{formatearPrecio(item.precio_unitario)} c/u</p>
+          <p className="font-semibold text-white">{formatearPrecio(item.subtotal)}</p>
         </div>
       </div>
     </div>
@@ -519,7 +520,7 @@ function TarjetaProducto({ producto, onClick, deshabilitado }) {
       </div>
       <div className="p-2.5">
         <p className="truncate text-sm font-medium text-white">{producto.nombre}</p>
-        <p className="mt-0.5 text-sm font-semibold text-[#f97316]">${Number(producto.precio).toFixed(2)}</p>
+        <p className="mt-0.5 text-sm font-semibold text-[#f97316]">{formatearPrecio(producto.precio)}</p>
       </div>
     </button>
   );
@@ -609,7 +610,7 @@ function ModalModificadores({ producto, onAgregar, onCancelar }) {
                     {opcion.nombre}
                   </span>
                   {Number(opcion.precio_extra) > 0 && (
-                    <span className="text-[#a1a1aa]">+${Number(opcion.precio_extra).toFixed(2)}</span>
+                    <span className="text-[#a1a1aa]">+{formatearPrecio(opcion.precio_extra)}</span>
                   )}
                 </label>
               ))}
@@ -648,7 +649,7 @@ function ModalModificadores({ producto, onAgregar, onCancelar }) {
         </Campo>
 
         <button type="submit" className="w-full rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d]">
-          Agregar al pedido — ${totalItem.toFixed(2)}
+          Agregar al pedido — {formatearPrecio(totalItem)}
         </button>
       </form>
     </Modal>
@@ -686,14 +687,14 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
               <span>
                 {item.cantidad}× {item.nombre_producto}
               </span>
-              <span>${Number(item.subtotal).toFixed(2)}</span>
+              <span>{formatearPrecio(item.subtotal)}</span>
             </div>
           ))}
         </div>
 
         <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
           <span className="text-base font-semibold text-white">Total a cobrar</span>
-          <span className="text-2xl font-bold text-[#f97316]">${total.toFixed(2)}</span>
+          <span className="text-2xl font-bold text-[#f97316]">{formatearPrecio(total)}</span>
         </div>
 
         <Campo label="Método de pago">
@@ -730,7 +731,7 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
             </Campo>
             {montoRecibido !== '' && (
               <p className="text-sm text-[#a1a1aa]">
-                Cambio: <span className="font-semibold text-white">${cambio.toFixed(2)}</span>
+                Cambio: <span className="font-semibold text-white">{formatearPrecio(cambio)}</span>
               </p>
             )}
           </>

@@ -97,7 +97,9 @@ CREATE TABLE IF NOT EXISTS productos (
   precio DECIMAL(12,2) NOT NULL,
   costo DECIMAL(12,2),
   tipo VARCHAR(20) NOT NULL DEFAULT 'producto'
-    CHECK (tipo IN ('producto', 'combo', 'modificador')),
+    -- 'modificador' se conserva por compatibilidad con productos creados
+    -- antes de renombrar esta opción a "Adicionales" en la UI.
+    CHECK (tipo IN ('producto', 'combo', 'modificador', 'adicionales')),
   disponible BOOLEAN NOT NULL DEFAULT true,
   disponible_para VARCHAR(20) NOT NULL DEFAULT 'todos'
     CHECK (disponible_para IN ('todos', 'mesa', 'delivery', 'barra')),
@@ -257,3 +259,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pedidos_mesa_activo
 CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido_id ON pedido_items(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_estado ON pedido_items(estado);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_restaurante_id ON pedido_items(restaurante_id);
+
+-- Migraciones: crear una tabla solo cuando falta no actualiza una tabla
+-- que ya existe, así que los cambios a restricciones de tablas existentes
+-- van aquí como ALTER TABLE idempotentes.
+
+-- 'tipo' de productos ahora acepta 'adicionales' (antes 'modificador').
+ALTER TABLE productos DROP CONSTRAINT IF EXISTS productos_tipo_check;
+ALTER TABLE productos ADD CONSTRAINT productos_tipo_check
+  CHECK (tipo IN ('producto', 'combo', 'modificador', 'adicionales'));

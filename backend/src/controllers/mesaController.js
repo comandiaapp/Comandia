@@ -5,6 +5,7 @@ const areaModel = require('../models/areaModel');
 const { ok, error } = require('../utils/respuestas');
 
 const ESTADOS_VALIDOS = ['libre', 'ocupada', 'cuenta_pedida', 'reservada', 'bloqueada'];
+const LIMITE_MESAS_REMOTAS = 20;
 
 // --- Mesas ---
 
@@ -152,7 +153,9 @@ async function eliminarMesa(req, res) {
 
 async function obtenerPlano(req, res) {
   try {
-    const areas = await areaModel.obtenerTodas(req.usuario.restauranteId);
+    // Las mesas de pedidos remotos (WhatsApp, llamada, para llevar) tienen
+    // su propia sección en el frontend y nunca aparecen en el plano.
+    const areas = (await areaModel.obtenerTodas(req.usuario.restauranteId)).filter((area) => !area.es_remota);
     const mesas = await mesaModel.obtenerTodas(req.usuario.restauranteId);
 
     const plano = areas.map((area) => ({
@@ -199,6 +202,9 @@ async function crearArea(req, res) {
 
 async function listarAreas(req, res) {
   try {
+    // Garantiza que el área de pedidos remotos exista antes de listar, sin
+    // requerir configuración manual por parte del restaurante.
+    await areaModel.obtenerOCrearAreaRemota(req.usuario.restauranteId);
     const areas = await areaModel.obtenerTodas(req.usuario.restauranteId);
     return ok(res, { areas });
   } catch (err) {
@@ -220,6 +226,35 @@ async function actualizarArea(req, res) {
   }
 }
 
+async function crearMesaRemota(req, res) {
+  try {
+    const areaRemota = await areaModel.obtenerOCrearAreaRemota(req.usuario.restauranteId);
+
+    const activas = await mesaModel.contarActivasEnArea(req.usuario.restauranteId, areaRemota.id);
+    if (activas >= LIMITE_MESAS_REMOTAS) {
+      return error(res, `Ya hay ${LIMITE_MESAS_REMOTAS} mesas remotas activas, el máximo permitido`, 400);
+    }
+
+    const numero = await mesaModel.obtenerSiguienteNumeroRemoto(req.usuario.restauranteId);
+
+    const mesa = await mesaModel.crear({
+      id: uuidv4(),
+      restaurante_id: req.usuario.restauranteId,
+      area_id: areaRemota.id,
+      numero,
+      capacidad: 1,
+    });
+
+    return ok(res, { mesa }, 201);
+  } catch (err) {
+    if (err.code === '23505') {
+      return error(res, 'Ya existe una mesa con ese número, intenta de nuevo', 409);
+    }
+    console.error('Error al crear mesa remota:', err);
+    return error(res, 'No se pudo crear la mesa remota', 500);
+  }
+}
+
 async function eliminarArea(req, res) {
   try {
     const area = await areaModel.eliminar(req.params.id, req.usuario.restauranteId);
@@ -235,6 +270,7 @@ async function eliminarArea(req, res) {
 
 module.exports = {
   crearMesa,
+  crearMesaRemota,
   listarMesas,
   obtenerMesa,
   actualizarMesa,

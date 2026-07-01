@@ -2,6 +2,7 @@ const express = require('express');
 
 const {
   crearMesa,
+  crearMesaRemota,
   listarMesas,
   obtenerMesa,
   actualizarMesa,
@@ -25,6 +26,7 @@ router.use(verificarToken);
 // interprete como un id.
 router.get('/mesas/plano', obtenerPlano);
 router.patch('/mesas/resetear-posiciones', verificarRol('admin', 'gerente'), resetearPosiciones);
+router.post('/mesas/remota', verificarRol('mesero', 'cajero', 'gerente', 'admin'), crearMesaRemota);
 
 router.get('/mesas', listarMesas);
 router.post('/mesas', verificarRol('admin', 'gerente'), crearMesa);

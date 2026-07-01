@@ -20,6 +20,11 @@ export async function crearMesa(datos) {
   return data.datos.mesa;
 }
 
+export async function crearMesaRemota() {
+  const { data } = await api.post('/api/mesas/remota');
+  return data.datos.mesa;
+}
+
 export async function actualizarMesa(id, datos) {
   const { data } = await api.put(`/api/mesas/${id}`, datos);
   return data.datos.mesa;

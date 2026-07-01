@@ -1,6 +1,9 @@
+const { v4: uuidv4 } = require('uuid');
+
 const pool = require('../config/database');
 
 const CAMPOS_ACTUALIZABLES = ['nombre', 'descripcion', 'orden', 'activa'];
+const NOMBRE_AREA_REMOTA = 'Pedidos remotos';
 
 async function crear({ id, restaurante_id, nombre, descripcion, orden }) {
   const { rows } = await pool.query(
@@ -64,4 +67,24 @@ async function eliminar(id, restauranteId) {
   return rows[0] || null;
 }
 
-module.exports = { crear, obtenerTodas, obtenerPorId, actualizar, eliminar };
+// Garantiza que exista el área especial de pedidos remotos para el
+// restaurante, creándola la primera vez que se necesita.
+async function obtenerOCrearAreaRemota(restauranteId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM areas WHERE restaurante_id = $1 AND es_remota = true AND activa = true LIMIT 1`,
+    [restauranteId]
+  );
+  if (rows[0]) {
+    return rows[0];
+  }
+
+  const { rows: nuevas } = await pool.query(
+    `INSERT INTO areas (id, restaurante_id, nombre, es_remota, orden)
+     VALUES ($1, $2, $3, true, $4)
+     RETURNING *`,
+    [uuidv4(), restauranteId, NOMBRE_AREA_REMOTA, 999]
+  );
+  return nuevas[0];
+}
+
+module.exports = { crear, obtenerTodas, obtenerPorId, actualizar, eliminar, obtenerOCrearAreaRemota };

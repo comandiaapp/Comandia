@@ -12,6 +12,7 @@ import { getProductos } from '../utils/productos';
 import { formatearPrecio } from '../utils/formato';
 import {
   crearPedido,
+  getPedidoPorMesa,
   agregarItemPedido,
   actualizarItemPedido,
   eliminarItemPedido,
@@ -29,6 +30,8 @@ const LABEL_ESTADO_PEDIDO = {
   pagado: 'Pagado',
   cancelado: 'Cancelado',
 };
+
+const ESTADOS_PEDIDO_ACTIVOS = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pedida'];
 
 const COLOR_ESTADO_PEDIDO = {
   abierto: '#6b7280',
@@ -73,19 +76,34 @@ function POS({ mesaId, onCerrar = () => {} }) {
     async function iniciar() {
       setCargando(true);
       try {
-        const [mesaData, pedidoData, categoriasData, productosData] = await Promise.all([
+        const [mesaData, categoriasData, productosData] = await Promise.all([
           getMesa(mesaId),
-          crearPedido({ mesa_id: mesaId, tipo: 'mesa' }),
           getCategorias(),
           getProductos({ disponible: true }),
         ]);
         setMesa(mesaData);
+        setCategorias(categoriasData);
+        setProductos(productosData);
+
+        // Primero se busca un pedido activo existente para la mesa. Solo se
+        // reutiliza si sigue en curso; uno pagado o cancelado se ignora y
+        // se abre uno nuevo (el backend ya filtra esto, pero se valida acá
+        // también para no depender únicamente de esa garantía).
+        let pedidoData = null;
+        try {
+          pedidoData = await getPedidoPorMesa(mesaId);
+        } catch {
+          pedidoData = null;
+        }
+
+        if (!pedidoData || !ESTADOS_PEDIDO_ACTIVOS.includes(pedidoData.estado)) {
+          pedidoData = await crearPedido({ mesa_id: mesaId, tipo: 'mesa' });
+        }
+
         setPedido({ ...pedidoData, items: pedidoData.items || [] });
         setDescuentoValor(Number(pedidoData.descuento) || 0);
         setImpuesto(Number(pedidoData.impuesto) || 0);
         setPropina(Number(pedidoData.propina) || 0);
-        setCategorias(categoriasData);
-        setProductos(productosData);
       } catch {
         toast.error('No se pudo cargar el pedido de esta mesa');
       } finally {

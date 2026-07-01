@@ -120,6 +120,23 @@ async function seedDatosEjemplo() {
   }
   console.log('  4 mesas creadas en "Terraza"');
 
+  const areaRemotaId = uuidv4();
+  await pool.query('INSERT INTO areas (id, restaurante_id, nombre, es_remota, orden) VALUES ($1, $2, $3, $4, $5)', [
+    areaRemotaId,
+    restauranteId,
+    'Pedidos remotos',
+    true,
+    999,
+  ]);
+  console.log('  area "Pedidos remotos" creada');
+
+  await pool.query(
+    `INSERT INTO mesas (id, restaurante_id, area_id, numero, capacidad)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [uuidv4(), restauranteId, areaRemotaId, 'WH-1', 1]
+  );
+  console.log('  1 mesa remota de ejemplo creada ("WH-1")');
+
   console.log('\nDatos de ejemplo insertados correctamente.');
 }
 

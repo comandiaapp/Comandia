@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw, Phone } from 'lucide-react';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors } from '@dnd-kit/core';
 
 import Modal from '../components/Modal';
@@ -13,6 +13,7 @@ import {
   getPlano,
   getMesas,
   crearMesa,
+  crearMesaRemota,
   actualizarMesa,
   cambiarEstadoMesa,
   actualizarPosicionMesa,
@@ -45,6 +46,7 @@ const CANVAS_WIDTH = 1200;
 const CANVAS_HEIGHT = 700;
 const GRID_SIZE = 100;
 const CLAVE_MODO_CUADRICULA = 'comandia_mesas_modo_cuadricula';
+const LIMITE_MESAS_REMOTAS = 20;
 
 function clamp(valor, min, max) {
   return Math.min(max, Math.max(min, valor));
@@ -82,6 +84,9 @@ function Mesas() {
   const [modalMesaForm, setModalMesaForm] = useState(null); // null | 'nueva' | mesa
   const [modalAreas, setModalAreas] = useState(false);
 
+  const [mesasRemotas, setMesasRemotas] = useState([]);
+  const [creandoMesaRemota, setCreandoMesaRemota] = useState(false);
+
   const cargarAreas = useCallback(async () => {
     try {
       setAreas(await getAreas());
@@ -111,6 +116,18 @@ function Mesas() {
     }
   }, []);
 
+  const areaRemota = areas.find((area) => area.es_remota);
+  const areasSeleccionables = areas.filter((area) => !area.es_remota);
+
+  const cargarMesasRemotas = useCallback(async (areaRemotaId) => {
+    if (!areaRemotaId) return;
+    try {
+      setMesasRemotas(await getMesas(areaRemotaId));
+    } catch {
+      toast.error('No se pudieron cargar las mesas remotas');
+    }
+  }, []);
+
   useEffect(() => {
     cargarAreas();
   }, [cargarAreas]);
@@ -121,6 +138,13 @@ function Mesas() {
     const intervalo = setInterval(cargarPlano, 30000);
     return () => clearInterval(intervalo);
   }, [vista, cargarPlano]);
+
+  useEffect(() => {
+    if (vista !== 'plano' || !areaRemota) return undefined;
+    cargarMesasRemotas(areaRemota.id);
+    const intervalo = setInterval(() => cargarMesasRemotas(areaRemota.id), 30000);
+    return () => clearInterval(intervalo);
+  }, [vista, areaRemota?.id, cargarMesasRemotas]);
 
   useEffect(() => {
     if (vista === 'lista') cargarMesas();
@@ -141,6 +165,7 @@ function Mesas() {
       setModalMesaAccion(null);
       cargarPlano();
       if (vista === 'lista') cargarMesas();
+      if (areaRemota) cargarMesasRemotas(areaRemota.id);
     } catch {
       toast.error('No se pudo cambiar el estado de la mesa');
     }
@@ -155,6 +180,20 @@ function Mesas() {
     setMesaSeleccionadaId(null);
     cargarPlano();
     if (vista === 'lista') cargarMesas();
+    if (areaRemota) cargarMesasRemotas(areaRemota.id);
+  }
+
+  async function handleCrearMesaRemota() {
+    setCreandoMesaRemota(true);
+    try {
+      const mesa = await crearMesaRemota();
+      setMesasRemotas((prev) => [...prev, mesa]);
+      toast.success(`Mesa ${mesa.numero} creada`);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo crear la mesa remota');
+    } finally {
+      setCreandoMesaRemota(false);
+    }
   }
 
   function handleDragEnd(event) {
@@ -320,7 +359,7 @@ function Mesas() {
 
       {vista === 'plano' ? (
         <div className="mt-6">
-          {areas.length > 0 && (
+          {areasSeleccionables.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -331,7 +370,7 @@ function Mesas() {
               >
                 Todas
               </button>
-              {areas.map((area) => (
+              {areasSeleccionables.map((area) => (
                 <button
                   key={area.id}
                   type="button"
@@ -440,6 +479,36 @@ function Mesas() {
                 {LABEL_ESTADO[estado]}
               </div>
             ))}
+          </div>
+
+          <div className="mt-8 border-t border-[#2a2a2a] pt-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Phone size={16} className="text-[#a1a1aa]" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white">Pedidos remotos</h2>
+              <span className="text-xs text-[#a1a1aa]">{mesasRemotas.length} activas</span>
+            </div>
+
+            <div className="flex items-center gap-3 overflow-x-auto pb-2">
+              {mesasRemotas.map((mesa) => (
+                <TarjetaMesaRemota key={mesa.id} mesa={mesa} onClick={() => setModalMesaAccion(mesa)} />
+              ))}
+
+              <button
+                type="button"
+                onClick={handleCrearMesaRemota}
+                disabled={creandoMesaRemota || mesasRemotas.length >= LIMITE_MESAS_REMOTAS}
+                title="Nueva mesa remota"
+                className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#333] text-[#a1a1aa] hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+
+            {mesasRemotas.length === 0 && (
+              <p className="mt-2 text-sm text-[#a1a1aa]">
+                No hay mesas remotas todavía. Usa el botón "+" para crear una.
+              </p>
+            )}
           </div>
         </div>
       ) : (
@@ -552,7 +621,7 @@ function Mesas() {
         <Modal titulo={modalMesaForm === 'nueva' ? 'Nueva mesa' : 'Editar mesa'} onClose={() => setModalMesaForm(null)}>
           <FormularioMesa
             mesa={modalMesaForm === 'nueva' ? null : modalMesaForm}
-            areas={areas}
+            areas={areasSeleccionables}
             onGuardar={handleGuardarMesa}
             onCancelar={() => setModalMesaForm(null)}
           />
@@ -561,7 +630,7 @@ function Mesas() {
 
       {modalAreas && (
         <Modal titulo="Gestionar áreas" onClose={() => setModalAreas(false)}>
-          <GestionAreas areas={areas} onGuardar={handleGuardarArea} />
+          <GestionAreas areas={areasSeleccionables} onGuardar={handleGuardarArea} />
         </Modal>
       )}
 
@@ -685,6 +754,28 @@ function TarjetaMesa({ mesa, onClick }) {
       </span>
       <span
         className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+        style={{ color, backgroundColor: `${color}33` }}
+      >
+        {LABEL_ESTADO[mesa.estado] || mesa.estado}
+      </span>
+    </button>
+  );
+}
+
+function TarjetaMesaRemota({ mesa, onClick }) {
+  const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 transition-transform hover:scale-105"
+      style={{ borderColor: color, backgroundColor: '#1a1a2e' }}
+    >
+      <Phone size={12} className="text-[#a1a1aa]" />
+      <span className="text-sm font-bold text-white">{mesa.numero}</span>
+      <span
+        className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase"
         style={{ color, backgroundColor: `${color}33` }}
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}

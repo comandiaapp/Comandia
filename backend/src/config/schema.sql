@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS areas (
   descripcion TEXT,
   activa BOOLEAN NOT NULL DEFAULT true,
   orden INTEGER NOT NULL DEFAULT 0,
+  es_remota BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -268,3 +269,7 @@ CREATE INDEX IF NOT EXISTS idx_pedido_items_restaurante_id ON pedido_items(resta
 ALTER TABLE productos DROP CONSTRAINT IF EXISTS productos_tipo_check;
 ALTER TABLE productos ADD CONSTRAINT productos_tipo_check
   CHECK (tipo IN ('producto', 'combo', 'modificador', 'adicionales'));
+
+-- Marca el área especial que agrupa las mesas de pedidos remotos
+-- (WhatsApp, llamada, para llevar), separada del plano principal.
+ALTER TABLE areas ADD COLUMN IF NOT EXISTS es_remota BOOLEAN NOT NULL DEFAULT false;

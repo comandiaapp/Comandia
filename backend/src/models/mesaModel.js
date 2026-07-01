@@ -123,4 +123,41 @@ async function eliminar(id, restauranteId) {
   return rows[0] || null;
 }
 
-module.exports = { crear, obtenerTodas, obtenerPorId, actualizar, cambiarEstado, resetearPosiciones, eliminar };
+// Busca el número más alto usado alguna vez en el patrón "WH-N" para este
+// restaurante (incluyendo mesas eliminadas, para nunca reutilizar un
+// número ya usado) y devuelve el siguiente correlativo.
+async function obtenerSiguienteNumeroRemoto(restauranteId) {
+  const { rows } = await pool.query(`SELECT numero FROM mesas WHERE restaurante_id = $1 AND numero LIKE 'WH-%'`, [
+    restauranteId,
+  ]);
+
+  let maximo = 0;
+  for (const { numero } of rows) {
+    const coincidencia = /^WH-(\d+)$/.exec(numero.trim());
+    if (coincidencia) {
+      maximo = Math.max(maximo, parseInt(coincidencia[1], 10));
+    }
+  }
+
+  return `WH-${maximo + 1}`;
+}
+
+async function contarActivasEnArea(restauranteId, areaId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM mesas WHERE restaurante_id = $1 AND area_id = $2 AND activa = true`,
+    [restauranteId, areaId]
+  );
+  return rows[0].total;
+}
+
+module.exports = {
+  crear,
+  obtenerTodas,
+  obtenerPorId,
+  actualizar,
+  cambiarEstado,
+  resetearPosiciones,
+  eliminar,
+  obtenerSiguienteNumeroRemoto,
+  contarActivasEnArea,
+};

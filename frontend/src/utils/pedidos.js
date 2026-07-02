@@ -54,3 +54,23 @@ export async function cancelarPedido(pedidoId) {
   const { data } = await api.post(`/api/pedidos/${pedidoId}/cancelar`);
   return data.datos.pedido;
 }
+
+export async function getCocina() {
+  const { data } = await api.get('/api/cocina');
+  return data.datos.pedidos;
+}
+
+export async function marcarItemEnPreparacion(pedidoId, itemId) {
+  const { data } = await api.patch(`/api/pedidos/${pedidoId}/items/${itemId}/en-preparacion`);
+  return data.datos;
+}
+
+export async function marcarItemListo(pedidoId, itemId) {
+  const { data } = await api.patch(`/api/pedidos/${pedidoId}/items/${itemId}/listo`);
+  return data.datos;
+}
+
+export async function marcarPedidoEntregado(pedidoId) {
+  const { data } = await api.patch(`/api/pedidos/${pedidoId}/entregado`);
+  return data.datos.pedido;
+}

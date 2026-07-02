@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Minus, Plus, Search, Trash2, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Flame, Minus, Plus, Search, Trash2, UtensilsCrossed } from 'lucide-react';
 
 import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
@@ -40,6 +40,13 @@ const COLOR_ESTADO_PEDIDO = {
   cuenta_pedida: '#eab308',
   pagado: '#22c55e',
   cancelado: '#ef4444',
+};
+
+const COLOR_ESTADO_ITEM = {
+  pendiente: '#71717a',
+  en_preparacion: '#f97316',
+  listo: '#22c55e',
+  entregado: '#71717a',
 };
 
 const METODOS_PAGO = [
@@ -126,8 +133,16 @@ function POS({ mesaId, onCerrar = () => {} }) {
       const notas = opciones.notas ?? '';
 
       if (modificadores.length === 0 && !notas) {
+        // Solo se fusiona con una línea que todavía no se envió a cocina.
+        // Si ya está en preparación/lista/entregada, sumar cantidad ahí la
+        // escondería del contador de "pendientes" y cocina nunca se
+        // enteraría de la porción extra; se crea una línea nueva en su lugar.
         const itemExistente = pedido.items.find(
-          (item) => item.producto_id === producto.id && !item.notas && (item.modificadores || []).length === 0
+          (item) =>
+            item.producto_id === producto.id &&
+            !item.notas &&
+            (item.modificadores || []).length === 0 &&
+            item.estado === 'pendiente'
         );
         if (itemExistente) {
           await handleActualizarCantidad(itemExistente, itemExistente.cantidad + cantidad);
@@ -206,8 +221,8 @@ function POS({ mesaId, onCerrar = () => {} }) {
         items: prev.items.map((item) => (item.estado === 'pendiente' ? { ...item, estado: 'en_preparacion' } : item)),
       }));
       toast.success('Pedido enviado a cocina');
-    } catch {
-      toast.error('No se pudo enviar el pedido a cocina');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo enviar el pedido a cocina');
     } finally {
       setEnviandoCocina(false);
     }
@@ -258,6 +273,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
   }
 
   const subtotal = Number(pedido?.subtotal || 0);
+  const itemsPendientes = pedido?.items?.filter((item) => item.estado === 'pendiente').length || 0;
   const descuentoMonto =
     descuentoModo === 'porcentaje' ? (subtotal * Number(descuentoValor || 0)) / 100 : Number(descuentoValor || 0);
   const totalCalculado = Math.max(0, subtotal - descuentoMonto + Number(impuesto || 0) + Number(propina || 0));
@@ -372,10 +388,15 @@ function POS({ mesaId, onCerrar = () => {} }) {
             <button
               type="button"
               onClick={handleEnviarCocina}
-              disabled={!pedido?.items?.length || enviandoCocina}
+              disabled={itemsPendientes === 0 || enviandoCocina}
+              title={itemsPendientes === 0 ? 'No hay items nuevos para enviar' : undefined}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {enviandoCocina ? 'Enviando...' : 'Enviar a cocina'}
+              {enviandoCocina
+                ? 'Enviando...'
+                : itemsPendientes > 0
+                  ? `Enviar a cocina (${itemsPendientes})`
+                  : 'Enviar a cocina'}
             </button>
             <button
               type="button"
@@ -479,15 +500,31 @@ function POS({ mesaId, onCerrar = () => {} }) {
 }
 
 function ItemPedido({ item, onCantidad, onEliminar }) {
+  const estado = item.estado || 'pendiente';
+  const entregado = estado === 'entregado';
+  const listo = estado === 'listo';
+  const enPreparacion = estado === 'en_preparacion';
+  const colorEstado = COLOR_ESTADO_ITEM[estado] || COLOR_ESTADO_ITEM.pendiente;
+
   return (
     <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-medium text-white">{item.nombre_producto}</p>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colorEstado }} />
+            {enPreparacion && <Flame size={12} className="shrink-0 text-[#f97316]" />}
+            <p
+              className={`truncate font-medium ${
+                entregado ? 'text-[#71717a] line-through' : listo ? 'text-[#22c55e]' : enPreparacion ? 'text-[#f97316]' : 'text-white'
+              }`}
+            >
+              {item.nombre_producto}
+            </p>
+          </div>
           {item.modificadores?.length > 0 && (
-            <p className="mt-0.5 text-xs text-[#a1a1aa]">{item.modificadores.map((m) => m.nombre_opcion).join(', ')}</p>
+            <p className="mt-0.5 pl-3.5 text-xs text-[#a1a1aa]">{item.modificadores.map((m) => m.nombre_opcion).join(', ')}</p>
           )}
-          {item.notas && <p className="mt-0.5 text-xs italic text-[#a1a1aa]">"{item.notas}"</p>}
+          {item.notas && <p className="mt-0.5 pl-3.5 text-xs italic text-[#a1a1aa]">"{item.notas}"</p>}
         </div>
         <button type="button" onClick={onEliminar} className="shrink-0 text-[#a1a1aa] hover:text-red-400">
           <Trash2 size={16} />

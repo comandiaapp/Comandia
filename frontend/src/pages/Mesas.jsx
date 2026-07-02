@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw, Phone, Clock } from 'lucide-react';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors } from '@dnd-kit/core';
@@ -64,6 +64,49 @@ function formatearHora(fechaIso) {
   return new Date(fechaIso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+// Pitido corto sin depender de un archivo de audio externo. Si el navegador
+// bloquea el audio (sin interacción previa del usuario) simplemente no suena.
+function reproducirSonidoAviso() {
+  try {
+    const Contexto = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Contexto();
+    const osc = ctx.createOscillator();
+    const ganancia = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    ganancia.gain.setValueAtTime(0.15, ctx.currentTime);
+    ganancia.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(ganancia);
+    ganancia.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    // Sin soporte de audio en este navegador; se ignora silenciosamente.
+  }
+}
+
+// Compara la lista de mesas recién cargada contra la última conocida (guardada
+// en un ref para no disparar renders) y avisa con sonido solo cuando aparece
+// un pedido 'listo' que no se había visto antes. En la primera carga de la
+// página nunca suena, para no alertar sobre pedidos que ya estaban listos
+// antes de abrir la pantalla.
+function detectarYAvisarNuevosListos(mesasFlat, conocidosRef, primerCargaRef) {
+  const idsListoAhora = new Set();
+  for (const mesa of mesasFlat) {
+    if (mesa.pedido_estado === 'listo' && mesa.pedido_id) idsListoAhora.add(mesa.pedido_id);
+  }
+  if (!primerCargaRef.current) {
+    const hayNuevo = [...idsListoAhora].some((id) => !conocidosRef.current.has(id));
+    if (hayNuevo) reproducirSonidoAviso();
+  }
+  conocidosRef.current = idsListoAhora;
+  primerCargaRef.current = false;
+}
+
+function debeMostrarBadgeListo(mesa, pedidosVistos) {
+  return mesa.pedido_estado === 'listo' && Boolean(mesa.pedido_id) && !pedidosVistos.has(mesa.pedido_id);
+}
+
 function tienePosicionGuardada(mesa) {
   return Number(mesa.posicion_x) > 0 && Number(mesa.posicion_y) > 0;
 }
@@ -100,6 +143,12 @@ function Mesas() {
   const [mesasRemotas, setMesasRemotas] = useState([]);
   const [creandoMesaRemota, setCreandoMesaRemota] = useState(false);
 
+  const [pedidosVistos, setPedidosVistos] = useState(() => new Set());
+  const pedidosListoPlanoRef = useRef(new Set());
+  const primerCargaPlanoRef = useRef(true);
+  const pedidosListoRemotasRef = useRef(new Set());
+  const primerCargaRemotasRef = useRef(true);
+
   const cargarAreas = useCallback(async () => {
     try {
       setAreas(await getAreas());
@@ -110,7 +159,10 @@ function Mesas() {
 
   const cargarPlano = useCallback(async () => {
     try {
-      setPlano(await getPlano());
+      const datos = await getPlano();
+      setPlano(datos);
+      const mesasFlat = datos.flatMap((area) => area.mesas);
+      detectarYAvisarNuevosListos(mesasFlat, pedidosListoPlanoRef, primerCargaPlanoRef);
     } catch {
       toast.error('No se pudo cargar el plano de mesas');
     } finally {
@@ -147,6 +199,7 @@ function Mesas() {
         })
       );
       setMesasRemotas(conHoraPedido);
+      detectarYAvisarNuevosListos(conHoraPedido, pedidosListoRemotasRef, primerCargaRemotasRef);
     } catch {
       toast.error('No se pudieron cargar las mesas remotas');
     }
@@ -202,6 +255,9 @@ function Mesas() {
   function handleAbrirPedido(mesa) {
     setModalMesaAccion(null);
     setMesaSeleccionadaId(mesa.id);
+    if (mesa.pedido_id) {
+      setPedidosVistos((prev) => new Set(prev).add(mesa.pedido_id));
+    }
   }
 
   function handleCerrarDrawer() {
@@ -496,6 +552,7 @@ function Mesas() {
                           mesas={mesasPosicionadas}
                           editable={false}
                           altura={alturaCanvas}
+                          pedidosVistos={pedidosVistos}
                           onClickMesa={(mesa) => setModalMesaAccion(mesa)}
                         />
                       </div>
@@ -504,7 +561,12 @@ function Mesas() {
                     {mesasSinPosicion.length > 0 && (
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                         {mesasSinPosicion.map((mesa) => (
-                          <TarjetaMesa key={mesa.id} mesa={mesa} onClick={() => setModalMesaAccion(mesa)} />
+                          <TarjetaMesa
+                            key={mesa.id}
+                            mesa={mesa}
+                            mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
+                            onClick={() => setModalMesaAccion(mesa)}
+                          />
                         ))}
                       </div>
                     )}
@@ -537,7 +599,12 @@ function Mesas() {
 
             <div className="flex items-center gap-3 overflow-x-auto pb-2">
               {mesasRemotas.map((mesa) => (
-                <TarjetaMesaRemota key={mesa.id} mesa={mesa} onClick={() => setModalMesaAccion(mesa)} />
+                <TarjetaMesaRemota
+                  key={mesa.id}
+                  mesa={mesa}
+                  mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
+                  onClick={() => setModalMesaAccion(mesa)}
+                />
               ))}
 
               <button
@@ -697,7 +764,7 @@ const FONDO_CUADRICULA = {
   backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
 };
 
-function CanvasPlano({ mesas, editable, cuadricula, altura, onClickMesa }) {
+function CanvasPlano({ mesas, editable, cuadricula, altura, pedidosVistos, onClickMesa }) {
   return (
     <div className="overflow-auto rounded-xl border border-[#2a2a2a]" style={{ maxHeight: altura }}>
       <div
@@ -713,7 +780,12 @@ function CanvasPlano({ mesas, editable, cuadricula, altura, onClickMesa }) {
           editable ? (
             <MesaArrastrable key={mesa.id} mesa={mesa} />
           ) : (
-            <MesaPosicionada key={mesa.id} mesa={mesa} onClick={() => onClickMesa(mesa)} />
+            <MesaPosicionada
+              key={mesa.id}
+              mesa={mesa}
+              mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
+              onClick={() => onClickMesa(mesa)}
+            />
           )
         )}
       </div>
@@ -751,7 +823,7 @@ function MesaArrastrable({ mesa }) {
   );
 }
 
-function MesaPosicionada({ mesa, onClick }) {
+function MesaPosicionada({ mesa, mostrarBadgeListo, onClick }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
 
   return (
@@ -768,6 +840,7 @@ function MesaPosicionada({ mesa, onClick }) {
       }}
       className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 p-2 transition-transform hover:scale-105"
     >
+      {mostrarBadgeListo && <BadgeListo />}
       <span className="text-xl font-bold text-white">{mesa.numero}</span>
       <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
         <Users size={10} />
@@ -783,16 +856,25 @@ function MesaPosicionada({ mesa, onClick }) {
   );
 }
 
-function TarjetaMesa({ mesa, onClick }) {
+function BadgeListo() {
+  return (
+    <span className="absolute -right-2 -top-2 z-10 animate-pulse whitespace-nowrap rounded-full bg-[#f97316] px-2 py-1 text-[10px] font-bold text-white shadow-lg shadow-[#f97316]/40">
+      ¡Listo!
+    </span>
+  );
+}
+
+function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
+      className="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
       style={{ borderColor: color, backgroundColor: `${color}1a` }}
     >
+      {mostrarBadgeListo && <BadgeListo />}
       <span className="text-2xl font-bold text-white">{mesa.numero}</span>
       {mesa.nombre && <span className="max-w-full truncate text-xs text-[#a1a1aa]">{mesa.nombre}</span>}
       <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">
@@ -809,16 +891,17 @@ function TarjetaMesa({ mesa, onClick }) {
   );
 }
 
-function TarjetaMesaRemota({ mesa, onClick }) {
+function TarjetaMesaRemota({ mesa, mostrarBadgeListo, onClick }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex aspect-square w-[167px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
+      className="relative flex aspect-square w-[167px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
       style={{ borderColor: color, backgroundColor: '#1a1a2e' }}
     >
+      {mostrarBadgeListo && <BadgeListo />}
       <Phone size={14} className="text-[#a1a1aa]" />
       <span className="max-w-full truncate text-2xl font-bold text-white">{mesa.numero}</span>
       <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">

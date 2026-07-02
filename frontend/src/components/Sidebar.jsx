@@ -61,21 +61,34 @@ function Sidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setAbierto(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-[#f97316]/10 text-[#f97316]' : 'text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white'
-                }`
-              }
-            >
-              <Icon size={18} />
-              {label}
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map(({ to, label, icon: Icon }) =>
+            to === '/cocina' ? (
+              <a
+                key={to}
+                href={to}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[#a1a1aa] transition-colors hover:bg-[#2a2a2a] hover:text-white"
+              >
+                <Icon size={18} />
+                {label}
+              </a>
+            ) : (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={() => setAbierto(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive ? 'bg-[#f97316]/10 text-[#f97316]' : 'text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white'
+                  }`
+                }
+              >
+                <Icon size={18} />
+                {label}
+              </NavLink>
+            )
+          )}
         </nav>
 
         <div className="border-t border-[#2a2a2a] px-4 py-4">

@@ -4,10 +4,12 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import CocinaLayout from './components/CocinaLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Menu from './pages/Menu';
 import Mesas from './pages/Mesas';
+import Cocina from './pages/Cocina';
 import Proximamente from './pages/Proximamente';
 import NotFound from './pages/NotFound';
 
@@ -76,9 +78,11 @@ function App() {
         <Route
           path="/cocina"
           element={
-            <ConLayout>
-              <Proximamente titulo="Cocina" />
-            </ConLayout>
+            <ProtectedRoute>
+              <CocinaLayout>
+                <Cocina />
+              </CocinaLayout>
+            </ProtectedRoute>
           }
         />
         <Route

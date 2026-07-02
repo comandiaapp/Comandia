@@ -31,6 +31,8 @@ async function crear({ id, restaurante_id, area_id, numero, nombre, capacidad, e
   return rows[0];
 }
 
+const ESTADOS_PEDIDO_ACTIVOS = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pedida'];
+
 async function obtenerTodas(restauranteId, areaId) {
   const condiciones = ['m.restaurante_id = $1', 'm.activa = true'];
   const valores = [restauranteId];
@@ -42,13 +44,17 @@ async function obtenerTodas(restauranteId, areaId) {
     i++;
   }
 
+  // El LEFT JOIN a pedidos solo puede aportar como mucho una fila por mesa:
+  // el índice único parcial idx_pedidos_mesa_activo garantiza que nunca haya
+  // más de un pedido activo simultáneo para la misma mesa.
   const { rows } = await pool.query(
-    `SELECT m.*, a.nombre AS area_nombre
+    `SELECT m.*, a.nombre AS area_nombre, p.id AS pedido_id, p.estado AS pedido_estado
      FROM mesas m
      LEFT JOIN areas a ON a.id = m.area_id
+     LEFT JOIN pedidos p ON p.mesa_id = m.id AND p.estado = ANY($${i}::varchar[])
      WHERE ${condiciones.join(' AND ')}
      ORDER BY m.numero ASC`,
-    valores
+    [...valores, ESTADOS_PEDIDO_ACTIVOS]
   );
   return rows;
 }

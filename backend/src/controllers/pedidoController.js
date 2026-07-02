@@ -120,6 +120,9 @@ async function agregarItem(req, res) {
 
     return ok(res, resultado, 201);
   } catch (err) {
+    if (err.pedidoNoEditable) {
+      return error(res, err.message, 400);
+    }
     console.error('Error al agregar el item:', err);
     return error(res, 'No se pudo agregar el producto al pedido', 500);
   }
@@ -159,6 +162,9 @@ async function enviarCocina(req, res) {
     }
     return ok(res, { pedido });
   } catch (err) {
+    if (err.sinItemsPendientes) {
+      return error(res, err.message, 400);
+    }
     console.error('Error al enviar el pedido a cocina:', err);
     return error(res, 'No se pudo enviar el pedido a cocina', 500);
   }
@@ -213,6 +219,59 @@ async function cancelar(req, res) {
   }
 }
 
+async function obtenerCocina(req, res) {
+  try {
+    const pedidos = await pedidoModel.obtenerCocina(req.usuario.restauranteId);
+    return ok(res, { pedidos });
+  } catch (err) {
+    console.error('Error al obtener los pedidos de cocina:', err);
+    return error(res, 'No se pudieron obtener los pedidos de cocina', 500);
+  }
+}
+
+async function marcarItemEnPreparacion(req, res) {
+  try {
+    const resultado = await pedidoModel.marcarItemEnPreparacion(
+      req.params.itemId,
+      req.params.id,
+      req.usuario.restauranteId
+    );
+    if (!resultado) {
+      return error(res, 'Item no encontrado', 404);
+    }
+    return ok(res, resultado);
+  } catch (err) {
+    console.error('Error al marcar el item en preparación:', err);
+    return error(res, 'No se pudo marcar el item en preparación', 500);
+  }
+}
+
+async function marcarItemListo(req, res) {
+  try {
+    const resultado = await pedidoModel.marcarItemListo(req.params.itemId, req.params.id, req.usuario.restauranteId);
+    if (!resultado) {
+      return error(res, 'Item no encontrado', 404);
+    }
+    return ok(res, resultado);
+  } catch (err) {
+    console.error('Error al marcar el item como listo:', err);
+    return error(res, 'No se pudo marcar el item como listo', 500);
+  }
+}
+
+async function marcarPedidoEntregado(req, res) {
+  try {
+    const pedido = await pedidoModel.marcarPedidoEntregado(req.params.id, req.usuario.restauranteId);
+    if (!pedido) {
+      return error(res, 'Pedido no encontrado', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al marcar el pedido como entregado:', err);
+    return error(res, 'No se pudo marcar el pedido como entregado', 500);
+  }
+}
+
 module.exports = {
   crear,
   obtenerPorMesa,
@@ -225,4 +284,8 @@ module.exports = {
   pedirCuenta,
   cobrar,
   cancelar,
+  obtenerCocina,
+  marcarItemEnPreparacion,
+  marcarItemListo,
+  marcarPedidoEntregado,
 };

@@ -4,6 +4,20 @@ const pool = require('../config/database');
 
 const ESTADOS_ACTIVOS = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pedida'];
 
+class PedidoNoEditableError extends Error {
+  constructor(estado) {
+    super(`El pedido está en estado '${estado}' y ya no admite más productos`);
+    this.pedidoNoEditable = true;
+  }
+}
+
+class SinItemsPendientesError extends Error {
+  constructor() {
+    super('No hay items nuevos para enviar a cocina');
+    this.sinItemsPendientes = true;
+  }
+}
+
 async function recalcularTotales(pedidoId, client) {
   const { rows: itemRows } = await client.query(
     `SELECT COALESCE(SUM(subtotal), 0) AS subtotal_items
@@ -147,12 +161,16 @@ async function agregarItem(pedidoId, item, restauranteId) {
     await client.query('BEGIN');
 
     const { rows: pedidoRows } = await client.query(
-      `SELECT id FROM pedidos WHERE id = $1 AND restaurante_id = $2`,
+      `SELECT id, estado FROM pedidos WHERE id = $1 AND restaurante_id = $2`,
       [pedidoId, restauranteId]
     );
     if (pedidoRows.length === 0) {
       await client.query('ROLLBACK');
       return null;
+    }
+    if (!ESTADOS_ACTIVOS.includes(pedidoRows[0].estado)) {
+      await client.query('ROLLBACK');
+      throw new PedidoNoEditableError(pedidoRows[0].estado);
     }
 
     const cantidad = item.cantidad ?? 1;
@@ -276,16 +294,25 @@ async function enviarCocina(pedidoId, restauranteId) {
   try {
     await client.query('BEGIN');
 
-    const { rows } = await client.query(
-      `UPDATE pedidos SET estado = 'enviado_cocina', updated_at = now()
-       WHERE id = $1 AND restaurante_id = $2
-       RETURNING *`,
+    const { rows: pedidoRows } = await client.query(
+      `SELECT id FROM pedidos WHERE id = $1 AND restaurante_id = $2`,
       [pedidoId, restauranteId]
     );
-    const pedido = rows[0];
-    if (!pedido) {
+    if (pedidoRows.length === 0) {
       await client.query('ROLLBACK');
       return null;
+    }
+
+    // Solo se envían los items realmente nuevos ('pendiente'); los que ya
+    // están en preparación, listos o entregados de una ronda anterior se
+    // quedan como están.
+    const { rows: pendientesRows } = await client.query(
+      `SELECT COUNT(*)::int AS total FROM pedido_items WHERE pedido_id = $1 AND estado = 'pendiente'`,
+      [pedidoId]
+    );
+    if (pendientesRows[0].total === 0) {
+      await client.query('ROLLBACK');
+      throw new SinItemsPendientesError();
     }
 
     await client.query(
@@ -294,8 +321,15 @@ async function enviarCocina(pedidoId, restauranteId) {
       [pedidoId]
     );
 
+    const { rows } = await client.query(
+      `UPDATE pedidos SET estado = 'enviado_cocina', updated_at = now()
+       WHERE id = $1 AND restaurante_id = $2
+       RETURNING *`,
+      [pedidoId, restauranteId]
+    );
+
     await client.query('COMMIT');
-    return pedido;
+    return rows[0];
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -422,6 +456,187 @@ async function cancelar(pedidoId, restauranteId) {
   }
 }
 
+const ESTADOS_COCINA = ['enviado_cocina', 'listo'];
+const ESTADOS_ITEM_VISIBLES_COCINA = ['pendiente', 'en_preparacion', 'listo'];
+
+async function obtenerCocina(restauranteId) {
+  const { rows: pedidos } = await pool.query(
+    `SELECT p.id, p.numero, p.tipo, p.estado, p.mesa_id, m.numero AS mesa_numero
+     FROM pedidos p
+     LEFT JOIN mesas m ON m.id = p.mesa_id
+     WHERE p.restaurante_id = $1 AND p.estado = ANY($2::varchar[])
+     ORDER BY p.created_at ASC`,
+    [restauranteId, ESTADOS_COCINA]
+  );
+
+  if (pedidos.length === 0) {
+    return [];
+  }
+
+  const pedidoIds = pedidos.map((p) => p.id);
+  const { rows: items } = await pool.query(
+    `SELECT pi.*,
+            COALESCE(
+              jsonb_agg(
+                jsonb_build_object(
+                  'id', pim.id,
+                  'nombre_opcion', pim.nombre_opcion,
+                  'precio_extra', pim.precio_extra
+                )
+              ) FILTER (WHERE pim.id IS NOT NULL),
+              '[]'::jsonb
+            ) AS modificadores
+     FROM pedido_items pi
+     LEFT JOIN pedido_item_modificadores pim ON pim.pedido_item_id = pi.id
+     WHERE pi.pedido_id = ANY($1::uuid[]) AND pi.estado = ANY($2::varchar[])
+     GROUP BY pi.id
+     ORDER BY pi.created_at ASC`,
+    [pedidoIds, ESTADOS_ITEM_VISIBLES_COCINA]
+  );
+
+  const itemsPorPedido = new Map();
+  for (const item of items) {
+    if (!itemsPorPedido.has(item.pedido_id)) {
+      itemsPorPedido.set(item.pedido_id, []);
+    }
+    itemsPorPedido.get(item.pedido_id).push(item);
+  }
+
+  // Un pedido cuyos items ya están todos entregados/cancelados no debe
+  // seguir mostrándose en el KDS aunque el pedido siga en estado 'listo'
+  // (el mesero todavía no ha cobrado).
+  return pedidos
+    .map((pedido) => {
+      const pedidoItems = itemsPorPedido.get(pedido.id) || [];
+      const timestamps = pedidoItems.map((i) => i.enviado_cocina_at).filter(Boolean);
+      const enviadoCocinaAt =
+        timestamps.length > 0 ? new Date(Math.min(...timestamps.map((t) => new Date(t).getTime()))) : null;
+      return { ...pedido, items: pedidoItems, enviado_cocina_at: enviadoCocinaAt };
+    })
+    .filter((pedido) => pedido.items.length > 0)
+    .sort((a, b) => {
+      if (!a.enviado_cocina_at) return 1;
+      if (!b.enviado_cocina_at) return -1;
+      return a.enviado_cocina_at - b.enviado_cocina_at;
+    });
+}
+
+async function marcarItemEnPreparacion(itemId, pedidoId, restauranteId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `UPDATE pedido_items SET estado = 'en_preparacion'
+       WHERE id = $1 AND pedido_id = $2 AND restaurante_id = $3
+       RETURNING *`,
+      [itemId, pedidoId, restauranteId]
+    );
+    const item = rows[0];
+    if (!item) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    // Si el pedido ya estaba marcado como 'listo' y uno de sus items vuelve
+    // a prepararse, el pedido deja de estar realmente listo.
+    const { rows: pedidoRows } = await client.query(
+      `UPDATE pedidos SET estado = 'enviado_cocina', updated_at = now()
+       WHERE id = $1 AND restaurante_id = $2 AND estado = 'listo'
+       RETURNING *`,
+      [pedidoId, restauranteId]
+    );
+
+    await client.query('COMMIT');
+    return { item, pedido: pedidoRows[0] || null };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function marcarItemListo(itemId, pedidoId, restauranteId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `UPDATE pedido_items SET estado = 'listo'
+       WHERE id = $1 AND pedido_id = $2 AND restaurante_id = $3
+       RETURNING *`,
+      [itemId, pedidoId, restauranteId]
+    );
+    const item = rows[0];
+    if (!item) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const { rows: pendientes } = await client.query(
+      `SELECT COUNT(*)::int AS total FROM pedido_items
+       WHERE pedido_id = $1 AND estado NOT IN ('listo', 'entregado', 'cancelado')`,
+      [pedidoId]
+    );
+
+    let pedido = null;
+    if (pendientes[0].total === 0) {
+      const { rows: pedidoRows } = await client.query(
+        `UPDATE pedidos SET estado = 'listo', updated_at = now()
+         WHERE id = $1 AND restaurante_id = $2
+         RETURNING *`,
+        [pedidoId, restauranteId]
+      );
+      pedido = pedidoRows[0];
+    }
+
+    await client.query('COMMIT');
+    return { item, pedido };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function marcarPedidoEntregado(pedidoId, restauranteId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Entregar los platos no cierra la mesa: el pedido vuelve a 'abierto'
+    // para que el mesero pueda seguir agregando productos a la misma
+    // cuenta hasta que el cliente pida pagar.
+    const { rows: pedidoRows } = await client.query(
+      `UPDATE pedidos SET estado = 'abierto', updated_at = now()
+       WHERE id = $1 AND restaurante_id = $2
+       RETURNING *`,
+      [pedidoId, restauranteId]
+    );
+    const pedido = pedidoRows[0];
+    if (!pedido) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    await client.query(
+      `UPDATE pedido_items SET estado = 'entregado'
+       WHERE pedido_id = $1 AND estado NOT IN ('cancelado', 'entregado')`,
+      [pedidoId]
+    );
+
+    await client.query('COMMIT');
+    return pedido;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   crear,
   obtenerPorMesa,
@@ -434,4 +649,8 @@ module.exports = {
   pedirCuenta,
   cobrar,
   cancelar,
+  obtenerCocina,
+  marcarItemEnPreparacion,
+  marcarItemListo,
+  marcarPedidoEntregado,
 };

@@ -7,5 +7,7 @@ router.use('/categorias', require('./categorias'));
 router.use('/', require('./productos'));
 router.use('/', require('./mesas'));
 router.use('/', require('./pedidos'));
+router.use('/', require('./reportes'));
+router.use('/', require('./jornadas'));
 
 module.exports = router;

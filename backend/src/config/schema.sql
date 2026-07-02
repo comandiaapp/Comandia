@@ -185,9 +185,12 @@ CREATE TABLE IF NOT EXISTS pedidos (
   propina DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
   pagado_con VARCHAR(20)
-    CHECK (pagado_con IS NULL OR pagado_con IN ('efectivo', 'tarjeta', 'qr', 'mixto')),
+    CHECK (pagado_con IS NULL OR pagado_con IN ('efectivo', 'tarjeta', 'qr', 'nequi', 'transferencia', 'mixto')),
   monto_recibido DECIMAL(12,2),
   cambio DECIMAL(12,2),
+  cuenta_pedida_at TIMESTAMPTZ,
+  pagado_at TIMESTAMPTZ,
+  mesa_liberada_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -273,3 +276,15 @@ ALTER TABLE productos ADD CONSTRAINT productos_tipo_check
 -- Marca el área especial que agrupa las mesas de pedidos remotos
 -- (WhatsApp, llamada, para llevar), separada del plano principal.
 ALTER TABLE areas ADD COLUMN IF NOT EXISTS es_remota BOOLEAN NOT NULL DEFAULT false;
+
+-- 'pagado_con' ahora acepta también 'nequi' y 'transferencia'.
+ALTER TABLE pedidos DROP CONSTRAINT IF EXISTS pedidos_pagado_con_check;
+ALTER TABLE pedidos ADD CONSTRAINT pedidos_pagado_con_check
+  CHECK (pagado_con IS NULL OR pagado_con IN ('efectivo', 'tarjeta', 'qr', 'nequi', 'transferencia', 'mixto'));
+
+-- Marcas de tiempo para medir el ciclo de vida del pedido: cuánto tarda
+-- desde que se pide la cuenta hasta que se cobra, y cuánto tarda la mesa
+-- en liberarse tras el cobro.
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cuenta_pedida_at TIMESTAMPTZ;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS pagado_at TIMESTAMPTZ;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS mesa_liberada_at TIMESTAMPTZ;

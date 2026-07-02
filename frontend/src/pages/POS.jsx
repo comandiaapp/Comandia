@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Flame, Minus, Plus, Search, Trash2, UtensilsCrossed } from 'lucide-react';
+import {
+  ArrowLeft,
+  Flame,
+  Minus,
+  Plus,
+  Search,
+  Trash2,
+  UtensilsCrossed,
+  Smartphone,
+  Building2,
+} from 'lucide-react';
 
 import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
@@ -18,6 +28,7 @@ import {
   eliminarItemPedido,
   enviarCocinaPedido,
   pedirCuentaPedido,
+  reabrirCuentaPedido,
   cobrarPedido,
   cancelarPedido,
 } from '../utils/pedidos';
@@ -50,11 +61,24 @@ const COLOR_ESTADO_ITEM = {
 };
 
 const METODOS_PAGO = [
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'tarjeta', label: 'Tarjeta' },
-  { value: 'qr', label: 'QR' },
-  { value: 'mixto', label: 'Mixto' },
+  { value: 'efectivo', label: 'Efectivo', color: '#f97316' },
+  { value: 'tarjeta', label: 'Tarjeta', color: '#f97316' },
+  { value: 'qr', label: 'QR', color: '#f97316' },
+  { value: 'nequi', label: 'Nequi', color: '#8B5CF6', icono: Smartphone },
+  { value: 'transferencia', label: 'Transferencia', color: '#3B82F6', icono: Building2 },
+  { value: 'mixto', label: 'Mixto', color: '#f97316' },
 ];
+
+const METODOS_MIXTO = METODOS_PAGO.filter((m) => m.value !== 'mixto');
+
+function tiempoTranscurrido(fechaIso) {
+  const ms = Date.now() - new Date(fechaIso).getTime();
+  const minutosTotales = Math.max(0, Math.floor(ms / 60000));
+  const horas = Math.floor(minutosTotales / 60);
+  const minutos = minutosTotales % 60;
+  if (horas === 0) return `${minutos} min`;
+  return `${horas}h ${minutos}min`;
+}
 
 function POS({ mesaId, onCerrar = () => {} }) {
   const { usuario } = useAuth();
@@ -72,6 +96,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
 
   const [modalProducto, setModalProducto] = useState(null);
   const [modalCobro, setModalCobro] = useState(false);
+  const [modalPrecuenta, setModalPrecuenta] = useState(false);
   const [agregandoProducto, setAgregandoProducto] = useState(false);
 
   const [descuentoModo, setDescuentoModo] = useState('monto'); // 'monto' | 'porcentaje'
@@ -111,6 +136,13 @@ function POS({ mesaId, onCerrar = () => {} }) {
         setDescuentoValor(Number(pedidoData.descuento) || 0);
         setImpuesto(Number(pedidoData.impuesto) || 0);
         setPropina(Number(pedidoData.propina) || 0);
+
+        // Si la mesa ya tenía la cuenta pedida (p. ej. se abrió el drawer
+        // desde la tarjeta de mesa en estado "cuenta_pedida"), la precuenta
+        // se muestra de inmediato en vez del POS normal.
+        if (pedidoData.estado === 'cuenta_pedida') {
+          setModalPrecuenta(true);
+        }
       } catch {
         toast.error('No se pudo cargar el pedido de esta mesa');
       } finally {
@@ -232,9 +264,20 @@ function POS({ mesaId, onCerrar = () => {} }) {
     try {
       const pedidoActualizado = await pedirCuentaPedido(pedido.id);
       setPedido((prev) => ({ ...prev, ...pedidoActualizado }));
-      setModalCobro(true);
+      setModalPrecuenta(true);
     } catch {
       toast.error('No se pudo pedir la cuenta');
+    }
+  }
+
+  async function handleReabrirCuenta() {
+    try {
+      const pedidoActualizado = await reabrirCuentaPedido(pedido.id);
+      setPedido((prev) => ({ ...prev, ...pedidoActualizado }));
+      setModalPrecuenta(false);
+      toast.success('Cuenta reabierta, ya puedes seguir agregando productos');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo reabrir la cuenta');
     }
   }
 
@@ -400,11 +443,11 @@ function POS({ mesaId, onCerrar = () => {} }) {
             </button>
             <button
               type="button"
-              onClick={handlePedirCuenta}
+              onClick={pedido?.estado === 'cuenta_pedida' ? () => setModalPrecuenta(true) : handlePedirCuenta}
               disabled={!pedido?.items?.length}
               className="w-full rounded-lg bg-[#eab308] px-4 py-2.5 text-sm font-semibold text-black hover:bg-[#ca9a06] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Pedir cuenta
+              {pedido?.estado === 'cuenta_pedida' ? 'Ver precuenta' : 'Pedir cuenta'}
             </button>
             {puedeCancelar && (
               <button
@@ -421,59 +464,79 @@ function POS({ mesaId, onCerrar = () => {} }) {
 
       {/* Panel derecho: menú */}
       <div className="flex w-full flex-1 flex-col overflow-hidden md:w-[60%]">
-        <div className="border-b border-[#2a2a2a] p-4">
-          <div className="relative mb-3">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar productos..."
-              className="w-full rounded-lg border border-[#333] bg-[#0f0f0f] py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-[#f97316]"
-            />
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-1">
+        {pedido?.estado === 'cuenta_pedida' ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+            <p className="text-lg text-white">La mesa solicitó la cuenta.</p>
+            <p className="text-sm text-[#a1a1aa]">¿Reabrir cuenta para seguir agregando productos?</p>
             <button
               type="button"
-              onClick={() => setCategoriaActiva('')}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                categoriaActiva === '' ? 'bg-[#f97316] text-white' : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
-              }`}
+              onClick={handleReabrirCuenta}
+              className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
             >
-              Todas
+              Reabrir cuenta
             </button>
-            {categorias.map((categoria) => (
-              <button
-                key={categoria.id}
-                type="button"
-                onClick={() => setCategoriaActiva(categoria.id)}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  categoriaActiva === categoria.id
-                    ? 'bg-[#f97316] text-white'
-                    : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
-                }`}
-              >
-                {categoria.nombre}
-              </button>
-            ))}
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="border-b border-[#2a2a2a] p-4">
+              <div className="relative mb-3">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />
+                <input
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Buscar productos..."
+                  className="w-full rounded-lg border border-[#333] bg-[#0f0f0f] py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-[#f97316]"
+                />
+              </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {productosFiltrados.map((producto) => (
-              <TarjetaProducto
-                key={producto.id}
-                producto={producto}
-                deshabilitado={agregandoProducto}
-                onClick={() => handleClickProducto(producto)}
-              />
-            ))}
-            {productosFiltrados.length === 0 && (
-              <p className="col-span-full py-12 text-center text-sm text-[#a1a1aa]">No se encontraron productos.</p>
-            )}
-          </div>
-        </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setCategoriaActiva('')}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    categoriaActiva === ''
+                      ? 'bg-[#f97316] text-white'
+                      : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  Todas
+                </button>
+                {categorias.map((categoria) => (
+                  <button
+                    key={categoria.id}
+                    type="button"
+                    onClick={() => setCategoriaActiva(categoria.id)}
+                    className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
+                      categoriaActiva === categoria.id
+                        ? 'bg-[#f97316] text-white'
+                        : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+                    }`}
+                  >
+                    {categoria.nombre}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {productosFiltrados.map((producto) => (
+                  <TarjetaProducto
+                    key={producto.id}
+                    producto={producto}
+                    deshabilitado={agregandoProducto}
+                    onClick={() => handleClickProducto(producto)}
+                  />
+                ))}
+                {productosFiltrados.length === 0 && (
+                  <p className="col-span-full py-12 text-center text-sm text-[#a1a1aa]">
+                    No se encontraron productos.
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {modalProducto && (
@@ -484,6 +547,24 @@ function POS({ mesaId, onCerrar = () => {} }) {
             setModalProducto(null);
           }}
           onCancelar={() => setModalProducto(null)}
+        />
+      )}
+
+      {modalPrecuenta && (
+        <ModalPrecuenta
+          mesa={mesa}
+          pedido={pedido}
+          subtotal={subtotal}
+          descuentoMonto={descuentoMonto}
+          impuesto={Number(impuesto || 0)}
+          propina={Number(propina || 0)}
+          total={totalCalculado}
+          onAplicarPropinaSugerida={(monto) => setPropina(monto)}
+          onCobrarAhora={() => {
+            setModalPrecuenta(false);
+            setModalCobro(true);
+          }}
+          onCancelar={() => setModalPrecuenta(false)}
         />
       )}
 
@@ -711,24 +792,136 @@ function ModalModificadores({ producto, onAgregar, onCancelar }) {
   );
 }
 
+const PORCENTAJE_PROPINA_SUGERIDA = 0.1;
+
+function ModalPrecuenta({
+  mesa,
+  pedido,
+  subtotal,
+  descuentoMonto,
+  impuesto,
+  propina,
+  total,
+  onAplicarPropinaSugerida,
+  onCobrarAhora,
+  onCancelar,
+}) {
+  const propinaSugerida = Math.round(subtotal * PORCENTAJE_PROPINA_SUGERIDA);
+
+  function handleImprimir() {
+    // Se deja el placeholder en consola; la impresión real de la precuenta
+    // se implementa junto con la factura.
+    console.log('Imprimir precuenta', pedido);
+    toast.success('Precuenta enviada a la impresora (simulado)');
+  }
+
+  return (
+    <Modal titulo={`${mesa ? `Mesa ${mesa.numero}` : 'Pedido'} — Precuenta`} onClose={onCancelar}>
+      <div className="space-y-4">
+        <p className="text-sm text-[#a1a1aa]">
+          Mesa ocupada hace <span className="font-semibold text-white">{tiempoTranscurrido(pedido.created_at)}</span>
+        </p>
+
+        <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-[#2a2a2a] p-3">
+          {(pedido.items || []).map((item) => (
+            <div key={item.id} className="flex justify-between text-sm text-[#a1a1aa]">
+              <span>
+                {item.cantidad}× {item.nombre_producto}
+              </span>
+              <span>{formatearPrecio(item.subtotal)}</span>
+            </div>
+          ))}
+          {(pedido.items || []).length === 0 && <p className="text-sm text-[#a1a1aa]">Sin productos.</p>}
+        </div>
+
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between text-[#a1a1aa]">
+            <span>Subtotal</span>
+            <span>{formatearPrecio(subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-[#a1a1aa]">
+            <span>Descuento</span>
+            <span>-{formatearPrecio(descuentoMonto)}</span>
+          </div>
+          <div className="flex justify-between text-[#a1a1aa]">
+            <span>Impuesto</span>
+            <span>{formatearPrecio(impuesto)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[#a1a1aa]">
+            <span>Propina</span>
+            <span className="flex items-center gap-2">
+              {formatearPrecio(propina)}
+              {propina !== propinaSugerida && (
+                <button
+                  type="button"
+                  onClick={() => onAplicarPropinaSugerida(propinaSugerida)}
+                  className="rounded-md border border-[#333] px-2 py-0.5 text-xs text-[#f97316] hover:bg-[#f97316]/10"
+                >
+                  Sugerida 10%: {formatearPrecio(propinaSugerida)}
+                </button>
+              )}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
+          <span className="text-base font-semibold text-white">TOTAL</span>
+          <span className="text-2xl font-bold text-[#f97316]">{formatearPrecio(total)}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={handleImprimir}
+            className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2a2a2a]"
+          >
+            Imprimir precuenta
+          </button>
+          <button
+            type="button"
+            onClick={onCobrarAhora}
+            className="rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+          >
+            Cobrar ahora
+          </button>
+          <button
+            type="button"
+            disabled
+            title="Próximamente"
+            className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-[#555] disabled:cursor-not-allowed"
+          >
+            Dividir cuenta
+          </button>
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-[#a1a1aa] hover:text-white"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
   const [metodo, setMetodo] = useState('efectivo');
   const [montoRecibido, setMontoRecibido] = useState('');
-  const [montoEfectivo, setMontoEfectivo] = useState('');
-  const [montoTarjeta, setMontoTarjeta] = useState('');
+  const [montosMixto, setMontosMixto] = useState({});
   const [guardando, setGuardando] = useState(false);
 
   const cambio = metodo === 'efectivo' && montoRecibido !== '' ? Math.max(0, Number(montoRecibido) - total) : 0;
+  const totalMixto = METODOS_MIXTO.reduce((suma, m) => suma + Number(montosMixto[m.value] || 0), 0);
+
+  function handleCambiarMontoMixto(metodoValue, valor) {
+    setMontosMixto((prev) => ({ ...prev, [metodoValue]: valor }));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setGuardando(true);
-    const monto =
-      metodo === 'mixto'
-        ? Number(montoEfectivo || 0) + Number(montoTarjeta || 0)
-        : metodo === 'efectivo'
-          ? Number(montoRecibido || 0)
-          : total;
+    const monto = metodo === 'mixto' ? totalMixto : metodo === 'efectivo' ? Number(montoRecibido || 0) : total;
     await onCobrar({ pagado_con: metodo, monto_recibido: monto });
     setGuardando(false);
   }
@@ -753,21 +946,27 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
         </div>
 
         <Campo label="Método de pago">
-          <div className="grid grid-cols-4 gap-2">
-            {METODOS_PAGO.map((opcion) => (
-              <button
-                key={opcion.value}
-                type="button"
-                onClick={() => setMetodo(opcion.value)}
-                className={`rounded-lg border px-2 py-2 text-xs font-medium ${
-                  metodo === opcion.value
-                    ? 'border-[#f97316] bg-[#f97316]/10 text-[#f97316]'
-                    : 'border-[#333] text-[#a1a1aa] hover:text-white'
-                }`}
-              >
-                {opcion.label}
-              </button>
-            ))}
+          <div className="grid grid-cols-3 gap-2">
+            {METODOS_PAGO.map((opcion) => {
+              const Icono = opcion.icono;
+              const seleccionado = metodo === opcion.value;
+              return (
+                <button
+                  key={opcion.value}
+                  type="button"
+                  onClick={() => setMetodo(opcion.value)}
+                  className="flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium"
+                  style={
+                    seleccionado
+                      ? { borderColor: opcion.color, backgroundColor: `${opcion.color}1a`, color: opcion.color }
+                      : { borderColor: '#333', color: '#a1a1aa' }
+                  }
+                >
+                  {Icono && <Icono size={16} />}
+                  {opcion.label}
+                </button>
+              );
+            })}
           </div>
         </Campo>
 
@@ -793,27 +992,24 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
         )}
 
         {metodo === 'mixto' && (
-          <div className="grid grid-cols-2 gap-4">
-            <Campo label="Monto en efectivo">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={montoEfectivo}
-                onChange={(e) => setMontoEfectivo(e.target.value)}
-                className="input"
-              />
-            </Campo>
-            <Campo label="Monto en tarjeta">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={montoTarjeta}
-                onChange={(e) => setMontoTarjeta(e.target.value)}
-                className="input"
-              />
-            </Campo>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              {METODOS_MIXTO.map((m) => (
+                <Campo key={m.value} label={`Monto en ${m.label.toLowerCase()}`}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={montosMixto[m.value] || ''}
+                    onChange={(e) => handleCambiarMontoMixto(m.value, e.target.value)}
+                    className="input"
+                  />
+                </Campo>
+              ))}
+            </div>
+            <p className="text-sm text-[#a1a1aa]">
+              Total combinado: <span className="font-semibold text-white">{formatearPrecio(totalMixto)}</span>
+            </p>
           </div>
         )}
 

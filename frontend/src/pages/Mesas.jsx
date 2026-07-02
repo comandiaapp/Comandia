@@ -23,7 +23,7 @@ import {
   crearArea,
   actualizarArea,
 } from '../utils/mesas';
-import { getPedidoPorMesa } from '../utils/pedidos';
+import { getPedidoPorMesa, pedirCuentaPedido } from '../utils/pedidos';
 
 const COLOR_ESTADO = {
   libre: '#22c55e',
@@ -252,11 +252,40 @@ function Mesas() {
     }
   }
 
+  // A diferencia de handleCambiarEstado, "pedir cuenta" no es solo un cambio
+  // de estado de la mesa: tiene que pasar por el pedido (pedidoModel.pedirCuenta
+  // registra cuenta_pedida_at y ese mismo endpoint ya deja la mesa en
+  // 'cuenta_pedida'), para que la precuenta del POS y el cronómetro de la
+  // tarjeta de mesa vean el mismo estado.
+  async function handlePedirCuentaRapida(mesa) {
+    try {
+      await pedirCuentaPedido(mesa.pedido_id);
+      toast.success('Cuenta pedida');
+      setModalMesaAccion(null);
+      cargarPlano();
+      if (vista === 'lista') cargarMesas();
+      if (areaRemota) cargarMesasRemotas(areaRemota.id);
+    } catch {
+      toast.error('No se pudo pedir la cuenta');
+    }
+  }
+
   function handleAbrirPedido(mesa) {
     setModalMesaAccion(null);
     setMesaSeleccionadaId(mesa.id);
     if (mesa.pedido_id) {
       setPedidosVistos((prev) => new Set(prev).add(mesa.pedido_id));
+    }
+  }
+
+  // Una mesa con la cuenta pedida ya no necesita el menú rápido de
+  // acciones: el click va directo al drawer del POS, que al detectar el
+  // pedido en estado 'cuenta_pedida' abre la precuenta de inmediato.
+  function handleClickMesa(mesa) {
+    if (mesa.estado === 'cuenta_pedida') {
+      handleAbrirPedido(mesa);
+    } else {
+      setModalMesaAccion(mesa);
     }
   }
 
@@ -553,7 +582,7 @@ function Mesas() {
                           editable={false}
                           altura={alturaCanvas}
                           pedidosVistos={pedidosVistos}
-                          onClickMesa={(mesa) => setModalMesaAccion(mesa)}
+                          onClickMesa={handleClickMesa}
                         />
                       </div>
                     )}
@@ -565,7 +594,7 @@ function Mesas() {
                             key={mesa.id}
                             mesa={mesa}
                             mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
-                            onClick={() => setModalMesaAccion(mesa)}
+                            onClick={() => handleClickMesa(mesa)}
                           />
                         ))}
                       </div>
@@ -603,7 +632,7 @@ function Mesas() {
                   key={mesa.id}
                   mesa={mesa}
                   mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
-                  onClick={() => setModalMesaAccion(mesa)}
+                  onClick={() => handleClickMesa(mesa)}
                 />
               ))}
 
@@ -727,6 +756,7 @@ function Mesas() {
           mesa={modalMesaAccion}
           onClose={() => setModalMesaAccion(null)}
           onCambiarEstado={(estado) => handleCambiarEstado(modalMesaAccion, estado)}
+          onPedirCuenta={() => handlePedirCuentaRapida(modalMesaAccion)}
           onAbrirPedido={handleAbrirPedido}
         />
       )}
@@ -823,8 +853,40 @@ function MesaArrastrable({ mesa }) {
   );
 }
 
+function minutosCuentaPedida(cuentaPedidaAt) {
+  return Math.max(0, Math.floor((Date.now() - new Date(cuentaPedidaAt).getTime()) / 60000));
+}
+
+function colorCronometroCuenta(minutos) {
+  if (minutos < 5) return '#22c55e';
+  if (minutos < 10) return '#f97316';
+  return '#ef4444';
+}
+
+// El cronómetro se recalcula en cada render; no necesita timer propio porque
+// cargarPlano/cargarMesas ya refrescan la pantalla cada 30 segundos.
+function CronometroCuenta({ cuentaPedidaAt }) {
+  const minutos = minutosCuentaPedida(cuentaPedidaAt);
+  const color = colorCronometroCuenta(minutos);
+  return (
+    <span className="flex items-center gap-1 text-[9px] font-semibold" style={{ color }}>
+      <Clock size={9} />
+      {minutos} min
+    </span>
+  );
+}
+
+function BadgeCuentaPedida() {
+  return (
+    <span className="absolute -left-2 -top-2 z-10 animate-pulse whitespace-nowrap rounded-full bg-[#eab308] px-2 py-1 text-[10px] font-bold text-white shadow-lg shadow-[#eab308]/40">
+      💳 Cuenta
+    </span>
+  );
+}
+
 function MesaPosicionada({ mesa, mostrarBadgeListo, onClick }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
+  const conCuentaPedida = mesa.pedido_estado === 'cuenta_pedida';
 
   return (
     <button
@@ -841,6 +903,7 @@ function MesaPosicionada({ mesa, mostrarBadgeListo, onClick }) {
       className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 p-2 transition-transform hover:scale-105"
     >
       {mostrarBadgeListo && <BadgeListo />}
+      {conCuentaPedida && <BadgeCuentaPedida />}
       <span className="text-xl font-bold text-white">{mesa.numero}</span>
       <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
         <Users size={10} />
@@ -852,6 +915,7 @@ function MesaPosicionada({ mesa, mostrarBadgeListo, onClick }) {
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}
       </span>
+      {conCuentaPedida && mesa.cuenta_pedida_at && <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />}
     </button>
   );
 }
@@ -866,6 +930,7 @@ function BadgeListo() {
 
 function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
+  const conCuentaPedida = mesa.pedido_estado === 'cuenta_pedida';
 
   return (
     <button
@@ -875,6 +940,7 @@ function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
       style={{ borderColor: color, backgroundColor: `${color}1a` }}
     >
       {mostrarBadgeListo && <BadgeListo />}
+      {conCuentaPedida && <BadgeCuentaPedida />}
       <span className="text-2xl font-bold text-white">{mesa.numero}</span>
       {mesa.nombre && <span className="max-w-full truncate text-xs text-[#a1a1aa]">{mesa.nombre}</span>}
       <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">
@@ -887,12 +953,14 @@ function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}
       </span>
+      {conCuentaPedida && mesa.cuenta_pedida_at && <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />}
     </button>
   );
 }
 
 function TarjetaMesaRemota({ mesa, mostrarBadgeListo, onClick }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
+  const conCuentaPedida = mesa.pedido_estado === 'cuenta_pedida';
 
   return (
     <button
@@ -902,6 +970,7 @@ function TarjetaMesaRemota({ mesa, mostrarBadgeListo, onClick }) {
       style={{ borderColor: color, backgroundColor: '#1a1a2e' }}
     >
       {mostrarBadgeListo && <BadgeListo />}
+      {conCuentaPedida && <BadgeCuentaPedida />}
       <Phone size={14} className="text-[#a1a1aa]" />
       <span className="max-w-full truncate text-2xl font-bold text-white">{mesa.numero}</span>
       <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">
@@ -914,15 +983,19 @@ function TarjetaMesaRemota({ mesa, mostrarBadgeListo, onClick }) {
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}
       </span>
-      <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
-        <Clock size={10} />
-        {mesa.horaPedido ? formatearHora(mesa.horaPedido) : 'Sin pedido'}
-      </span>
+      {conCuentaPedida && mesa.cuenta_pedida_at ? (
+        <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />
+      ) : (
+        <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
+          <Clock size={10} />
+          {mesa.horaPedido ? formatearHora(mesa.horaPedido) : 'Sin pedido'}
+        </span>
+      )}
     </button>
   );
 }
 
-function ModalAccionMesa({ mesa, onClose, onCambiarEstado, onAbrirPedido }) {
+function ModalAccionMesa({ mesa, onClose, onCambiarEstado, onPedirCuenta, onAbrirPedido }) {
   if (mesa.estado === 'libre') {
     return (
       <Modal titulo={`Mesa ${mesa.numero}`} onClose={onClose}>
@@ -961,7 +1034,7 @@ function ModalAccionMesa({ mesa, onClose, onCambiarEstado, onAbrirPedido }) {
             </button>
             <button
               type="button"
-              onClick={() => onCambiarEstado('cuenta_pedida')}
+              onClick={onPedirCuenta}
               className="w-full rounded-lg border border-[#333] px-4 py-2 text-left text-sm text-white hover:bg-[#2a2a2a]"
             >
               Pedir cuenta
@@ -975,19 +1048,6 @@ function ModalAccionMesa({ mesa, onClose, onCambiarEstado, onAbrirPedido }) {
             className="w-full rounded-lg border border-[#333] px-4 py-2 text-left text-sm text-white hover:bg-[#2a2a2a]"
           >
             Abrir mesa
-          </button>
-        )}
-        {mesa.estado === 'cuenta_pedida' && (
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('¿Reabrir la cuenta? El cliente podrá seguir pidiendo.')) {
-                onCambiarEstado('ocupada');
-              }
-            }}
-            className="w-full rounded-lg border border-[#333] px-4 py-2 text-left text-sm text-white hover:bg-[#2a2a2a]"
-          >
-            Reabrir cuenta
           </button>
         )}
         <button

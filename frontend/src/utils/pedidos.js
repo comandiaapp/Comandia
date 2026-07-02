@@ -45,6 +45,11 @@ export async function pedirCuentaPedido(pedidoId) {
   return data.datos.pedido;
 }
 
+export async function reabrirCuentaPedido(pedidoId) {
+  const { data } = await api.post(`/api/pedidos/${pedidoId}/reabrir-cuenta`);
+  return data.datos.pedido;
+}
+
 export async function cobrarPedido(pedidoId, datos) {
   const { data } = await api.post(`/api/pedidos/${pedidoId}/cobrar`, datos);
   return data.datos.pedido;

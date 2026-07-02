@@ -4,7 +4,8 @@ const pedidoModel = require('../models/pedidoModel');
 const { ok, error } = require('../utils/respuestas');
 
 const TIPOS_VALIDOS = ['mesa', 'barra', 'delivery', 'take_away'];
-const METODOS_PAGO_VALIDOS = ['efectivo', 'tarjeta', 'qr', 'mixto'];
+const METODOS_PAGO_VALIDOS = ['efectivo', 'tarjeta', 'qr', 'nequi', 'transferencia', 'mixto'];
+const ESTADOS_ACTIVOS_FILTRO = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pedida'];
 
 async function crear(req, res) {
   const { mesa_id, sucursal_id, jornada_id, tipo, notas } = req.body;
@@ -86,11 +87,16 @@ async function obtenerPorId(req, res) {
 
 async function listar(req, res) {
   try {
-    const { estado, fecha, mesa_id } = req.query;
+    const { estado, fecha, mesa_id, tipo } = req.query;
     const filtros = {};
-    if (estado !== undefined) filtros.estado = estado;
     if (fecha !== undefined) filtros.fecha = fecha;
     if (mesa_id !== undefined) filtros.mesa_id = mesa_id;
+    if (tipo !== undefined) filtros.tipo = tipo;
+    if (estado === 'activos') {
+      filtros.estados = ESTADOS_ACTIVOS_FILTRO;
+    } else if (estado !== undefined) {
+      filtros.estado = estado;
+    }
 
     const pedidos = await pedidoModel.obtenerTodos(req.usuario.restauranteId, filtros);
     return ok(res, { pedidos });
@@ -180,6 +186,19 @@ async function pedirCuenta(req, res) {
   } catch (err) {
     console.error('Error al pedir la cuenta:', err);
     return error(res, 'No se pudo pedir la cuenta', 500);
+  }
+}
+
+async function reabrirCuenta(req, res) {
+  try {
+    const pedido = await pedidoModel.reabrirCuenta(req.params.id, req.usuario.restauranteId);
+    if (!pedido) {
+      return error(res, 'El pedido no existe o no está en estado "cuenta pedida"', 404);
+    }
+    return ok(res, { pedido });
+  } catch (err) {
+    console.error('Error al reabrir la cuenta:', err);
+    return error(res, 'No se pudo reabrir la cuenta', 500);
   }
 }
 
@@ -282,6 +301,7 @@ module.exports = {
   eliminarItem,
   enviarCocina,
   pedirCuenta,
+  reabrirCuenta,
   cobrar,
   cancelar,
   obtenerCocina,

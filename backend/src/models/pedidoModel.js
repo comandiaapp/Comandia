@@ -93,10 +93,13 @@ async function obtenerPorMesa(mesaId, restauranteId) {
 }
 
 async function obtenerPorId(id, restauranteId) {
-  const { rows } = await pool.query(`SELECT * FROM pedidos WHERE id = $1 AND restaurante_id = $2`, [
-    id,
-    restauranteId,
-  ]);
+  const { rows } = await pool.query(
+    `SELECT p.*, m.numero AS mesa_numero
+     FROM pedidos p
+     LEFT JOIN mesas m ON m.id = p.mesa_id
+     WHERE p.id = $1 AND p.restaurante_id = $2`,
+    [id, restauranteId]
+  );
   const pedido = rows[0];
   if (!pedido) {
     return null;
@@ -128,28 +131,50 @@ async function obtenerPorId(id, restauranteId) {
 }
 
 async function obtenerTodos(restauranteId, filtros = {}) {
-  const condiciones = ['restaurante_id = $1'];
+  const condiciones = ['p.restaurante_id = $1'];
   const valores = [restauranteId];
   let i = 2;
 
-  if (filtros.estado !== undefined) {
-    condiciones.push(`estado = $${i}`);
+  if (filtros.estados !== undefined) {
+    condiciones.push(`p.estado = ANY($${i}::varchar[])`);
+    valores.push(filtros.estados);
+    i++;
+  } else if (filtros.estado !== undefined) {
+    condiciones.push(`p.estado = $${i}`);
     valores.push(filtros.estado);
     i++;
   }
   if (filtros.mesa_id !== undefined) {
-    condiciones.push(`mesa_id = $${i}`);
+    condiciones.push(`p.mesa_id = $${i}`);
     valores.push(filtros.mesa_id);
     i++;
   }
   if (filtros.fecha !== undefined) {
-    condiciones.push(`created_at::date = $${i}`);
+    condiciones.push(`p.created_at::date = $${i}`);
     valores.push(filtros.fecha);
     i++;
   }
+  if (filtros.tipo !== undefined) {
+    condiciones.push(`p.tipo = $${i}`);
+    valores.push(filtros.tipo);
+    i++;
+  }
 
+  // items_resumen trae un texto tipo "Hamburguesa x2, Limonada x1" para la
+  // tabla de historial, sin necesidad de pedir el detalle completo de cada
+  // pedido (que incluye modificadores y notas por item).
   const { rows } = await pool.query(
-    `SELECT * FROM pedidos WHERE ${condiciones.join(' AND ')} ORDER BY created_at DESC`,
+    `SELECT p.*, m.numero AS mesa_numero,
+            COALESCE(
+              (SELECT string_agg(pi.nombre_producto || ' x' || pi.cantidad, ', ' ORDER BY pi.created_at)
+               FROM pedido_items pi
+               WHERE pi.pedido_id = p.id AND pi.estado != 'cancelado'),
+              ''
+            ) AS items_resumen
+     FROM pedidos p
+     LEFT JOIN mesas m ON m.id = p.mesa_id
+     WHERE ${condiciones.join(' AND ')}
+     ORDER BY p.created_at DESC`,
     valores
   );
   return rows;
@@ -344,7 +369,7 @@ async function pedirCuenta(pedidoId, restauranteId) {
     await client.query('BEGIN');
 
     const { rows } = await client.query(
-      `UPDATE pedidos SET estado = 'cuenta_pedida', updated_at = now()
+      `UPDATE pedidos SET estado = 'cuenta_pedida', cuenta_pedida_at = now(), updated_at = now()
        WHERE id = $1 AND restaurante_id = $2
        RETURNING *`,
       [pedidoId, restauranteId]
@@ -358,6 +383,40 @@ async function pedirCuenta(pedidoId, restauranteId) {
     if (pedido.mesa_id) {
       await client.query(
         `UPDATE mesas SET estado = 'cuenta_pedida', updated_at = now() WHERE id = $1 AND restaurante_id = $2`,
+        [pedido.mesa_id, restauranteId]
+      );
+    }
+
+    await client.query('COMMIT');
+    return pedido;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function reabrirCuenta(pedidoId, restauranteId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `UPDATE pedidos SET estado = 'abierto', updated_at = now()
+       WHERE id = $1 AND restaurante_id = $2 AND estado = 'cuenta_pedida'
+       RETURNING *`,
+      [pedidoId, restauranteId]
+    );
+    const pedido = rows[0];
+    if (!pedido) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    if (pedido.mesa_id) {
+      await client.query(
+        `UPDATE mesas SET estado = 'ocupada', updated_at = now() WHERE id = $1 AND restaurante_id = $2`,
         [pedido.mesa_id, restauranteId]
       );
     }
@@ -398,7 +457,9 @@ async function cobrar(pedidoId, datos, restauranteId) {
     const { rows } = await client.query(
       `UPDATE pedidos
        SET estado = 'pagado', descuento = $1, impuesto = $2, propina = $3, total = $4,
-           pagado_con = $5, monto_recibido = $6, cambio = $7, updated_at = now()
+           pagado_con = $5, monto_recibido = $6, cambio = $7, pagado_at = now(),
+           mesa_liberada_at = CASE WHEN mesa_id IS NOT NULL THEN now() ELSE mesa_liberada_at END,
+           updated_at = now()
        WHERE id = $8 AND restaurante_id = $9
        RETURNING *`,
       [descuento, impuesto, propina, total, datos.pagado_con, montoRecibido, cambio, pedidoId, restauranteId]
@@ -647,6 +708,7 @@ module.exports = {
   eliminarItem,
   enviarCocina,
   pedirCuenta,
+  reabrirCuenta,
   cobrar,
   cancelar,
   obtenerCocina,

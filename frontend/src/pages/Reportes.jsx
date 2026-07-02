@@ -14,6 +14,8 @@ const LABEL_METODO_PAGO = {
   efectivo: 'Efectivo',
   tarjeta: 'Tarjeta',
   qr: 'QR',
+  nequi: 'Nequi',
+  transferencia: 'Transferencia',
   mixto: 'Mixto',
   sin_especificar: 'Sin especificar',
 };

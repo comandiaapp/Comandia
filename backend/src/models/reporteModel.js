@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const jornadaModel = require('./jornadaModel');
 
 async function ventasDia(restauranteId, fecha) {
   const { rows: pedidos } = await pool.query(
@@ -115,17 +116,7 @@ async function productosMasVendidos(restauranteId, fechaInicio, fechaFin, limite
   });
 }
 
-async function resumenDashboard(restauranteId, hoy, ayer, inicioSemana) {
-  const { rows: ventasHoyRows } = await pool.query(
-    `SELECT COALESCE(SUM(total), 0) AS total, COUNT(*)::int AS cantidad
-     FROM pedidos WHERE restaurante_id = $1 AND estado = 'pagado' AND updated_at::date = $2`,
-    [restauranteId, hoy]
-  );
-  const { rows: ventasAyerRows } = await pool.query(
-    `SELECT COALESCE(SUM(total), 0) AS total
-     FROM pedidos WHERE restaurante_id = $1 AND estado = 'pagado' AND updated_at::date = $2`,
-    [restauranteId, ayer]
-  );
+async function resumenDashboard(restauranteId, sucursalId, hoy, inicioSemana) {
   const { rows: ventasSemanaRows } = await pool.query(
     `SELECT COALESCE(SUM(total), 0) AS total
      FROM pedidos WHERE restaurante_id = $1 AND estado = 'pagado' AND updated_at::date BETWEEN $2 AND $3`,
@@ -153,15 +144,59 @@ async function resumenDashboard(restauranteId, hoy, ayer, inicioSemana) {
     [restauranteId, hoy]
   );
 
-  const totalHoy = Number(ventasHoyRows[0].total);
-  const totalAyer = Number(ventasAyerRows[0].total);
-  const variacionPorcentual = totalAyer > 0 ? ((totalHoy - totalAyer) / totalAyer) * 100 : totalHoy > 0 ? 100 : 0;
+  // Las ventas del dashboard ya no son "de hoy" sino de la jornada activa
+  // (desde que se abrió hasta ahora), para que cuadren con la jornada que
+  // el cajero está a punto de cerrar. Si no hay jornada abierta no hay nada
+  // que sumar.
+  const jornadaActual = await jornadaModel.obtenerAbierta(restauranteId, sucursalId);
+  let ventasJornada = 0;
+  let pedidosJornada = 0;
+  let ventasPorHoraJornada = [];
+
+  if (jornadaActual) {
+    const ventas = await jornadaModel.calcularVentas(jornadaActual);
+    ventasJornada = ventas.total_ventas;
+    pedidosJornada = ventas.cantidad_pedidos;
+
+    const { rows: pedidosJornadaRows } = await pool.query(
+      `SELECT total, updated_at FROM pedidos
+       WHERE restaurante_id = $1 AND sucursal_id = $2 AND estado = 'pagado' AND updated_at >= $3`,
+      [restauranteId, jornadaActual.sucursal_id, jornadaActual.fecha_apertura]
+    );
+
+    const porHora = new Map();
+    for (const pedido of pedidosJornadaRows) {
+      const hora = new Date(pedido.updated_at).getHours();
+      const actual = porHora.get(hora) || { hora, total_ventas: 0, cantidad_pedidos: 0 };
+      actual.total_ventas += Number(pedido.total);
+      actual.cantidad_pedidos += 1;
+      porHora.set(hora, actual);
+    }
+    ventasPorHoraJornada = [...porHora.values()].sort((a, b) => a.hora - b.hora);
+  }
+
+  const jornadaAnterior = await jornadaModel.obtenerUltimaCerrada(restauranteId, sucursalId);
+  let ventasJornadaAnterior = 0;
+  if (jornadaAnterior) {
+    const ventas = await jornadaModel.calcularVentas(jornadaAnterior);
+    ventasJornadaAnterior = ventas.total_ventas;
+  }
+
+  const variacionJornada =
+    ventasJornadaAnterior > 0
+      ? ((ventasJornada - ventasJornadaAnterior) / ventasJornadaAnterior) * 100
+      : ventasJornada > 0
+        ? 100
+        : 0;
 
   return {
-    ventas_hoy: totalHoy,
-    ventas_ayer: totalAyer,
-    variacion_porcentual: variacionPorcentual,
-    pedidos_hoy: ventasHoyRows[0].cantidad,
+    ventas_jornada: ventasJornada,
+    pedidos_jornada: pedidosJornada,
+    jornada_abierta: Boolean(jornadaActual),
+    ventas_jornada_anterior: ventasJornadaAnterior,
+    hay_jornada_anterior: Boolean(jornadaAnterior),
+    variacion_jornada: variacionJornada,
+    ventas_por_hora_jornada: ventasPorHoraJornada,
     pedidos_activos: pedidosActivosRows[0].total,
     mesas_ocupadas: mesasRows[0].ocupadas,
     mesas_total: mesasRows[0].total,

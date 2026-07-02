@@ -15,6 +15,17 @@ async function obtenerAbierta(restauranteId, sucursalId) {
   return rows[0] || null;
 }
 
+async function obtenerUltimaCerrada(restauranteId, sucursalId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM jornadas
+     WHERE restaurante_id = $1 AND sucursal_id = $2 AND estado = 'cerrada'
+     ORDER BY fecha_cierre DESC
+     LIMIT 1`,
+    [restauranteId, sucursalId]
+  );
+  return rows[0] || null;
+}
+
 async function abrir({ id, restaurante_id, sucursal_id, usuario_apertura_id, monto_apertura }) {
   const { rows } = await pool.query(
     `INSERT INTO jornadas (id, restaurante_id, sucursal_id, usuario_apertura_id, monto_apertura, estado)
@@ -149,4 +160,13 @@ async function historial(restauranteId, limite = 30) {
   );
 }
 
-module.exports = { obtenerAbierta, abrir, calcularVentas, obtenerPorId, cerrar, reabrir, historial };
+module.exports = {
+  obtenerAbierta,
+  obtenerUltimaCerrada,
+  abrir,
+  calcularVentas,
+  obtenerPorId,
+  cerrar,
+  reabrir,
+  historial,
+};

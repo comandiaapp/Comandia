@@ -10,13 +10,15 @@ import BotonesFormulario from '../components/BotonesFormulario';
 import Spinner from '../components/Spinner';
 import GraficaBarras from '../components/GraficaBarras';
 import { formatearPrecio } from '../utils/formato';
-import { getResumenDashboard, getVentasDia } from '../utils/reportes';
+import { getResumenDashboard } from '../utils/reportes';
 import { getJornadaActual, abrirJornada, cerrarJornada } from '../utils/jornadas';
 
 const LABEL_METODO_PAGO = {
   efectivo: 'Efectivo',
   tarjeta: 'Tarjeta',
   qr: 'QR',
+  nequi: 'Nequi',
+  transferencia: 'Transferencia',
   mixto: 'Mixto',
   sin_especificar: 'Sin especificar',
 };
@@ -47,7 +49,6 @@ function Dashboard() {
   const [resumen, setResumen] = useState(null);
   const [jornada, setJornada] = useState(null);
   const [ventasJornada, setVentasJornada] = useState(null);
-  const [reporteHoy, setReporteHoy] = useState(null);
   const [cargando, setCargando] = useState(true);
 
   const [modalAbrir, setModalAbrir] = useState(false);
@@ -56,15 +57,10 @@ function Dashboard() {
 
   const cargarTodo = useCallback(async () => {
     try {
-      const [datosResumen, datosJornada, datosReporteHoy] = await Promise.all([
-        getResumenDashboard(),
-        getJornadaActual(),
-        getVentasDia(),
-      ]);
+      const [datosResumen, datosJornada] = await Promise.all([getResumenDashboard(), getJornadaActual()]);
       setResumen(datosResumen);
       setJornada(datosJornada.jornada);
       setVentasJornada(datosJornada.ventas || null);
-      setReporteHoy(datosReporteHoy);
     } catch {
       toast.error('No se pudo cargar la información del dashboard');
     } finally {
@@ -128,7 +124,7 @@ function Dashboard() {
     return <Spinner />;
   }
 
-  const datosGrafica = (reporteHoy?.ventas_por_hora || []).map((v) => ({
+  const datosGrafica = (resumen?.ventas_por_hora_jornada || []).map((v) => ({
     label: formatearHora(v.hora),
     valor: v.total_ventas,
   }));
@@ -174,7 +170,7 @@ function Dashboard() {
       )}
 
       <div className="mt-6 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-6">
-        <h2 className="text-lg font-semibold text-white">Ventas por hora — hoy</h2>
+        <h2 className="text-lg font-semibold text-white">Ventas por hora — jornada actual</h2>
         <div className="mt-4">
           <GraficaBarras datos={datosGrafica} />
         </div>
@@ -252,17 +248,28 @@ function TarjetaResumen({ icono: Icono, titulo, valor, subtitulo, link }) {
 }
 
 function TarjetaVentasHoy({ resumen }) {
-  const subio = resumen.variacion_porcentual >= 0;
+  if (!resumen.jornada_abierta) {
+    return (
+      <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
+        <p className="text-sm text-[#a1a1aa]">Ventas esta jornada</p>
+        <p className="mt-2 text-lg font-semibold text-[#a1a1aa]">Sin jornada abierta</p>
+      </div>
+    );
+  }
+
+  const subio = resumen.variacion_jornada >= 0;
   return (
     <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-      <p className="text-sm text-[#a1a1aa]">Ventas hoy</p>
-      <p className="mt-2 text-2xl font-bold text-white">{formatearPrecio(resumen.ventas_hoy)}</p>
-      <div
-        className={`mt-1 flex items-center gap-1 text-xs font-medium ${subio ? 'text-green-400' : 'text-red-400'}`}
-      >
-        {subio ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-        {Math.abs(resumen.variacion_porcentual).toFixed(0)}% vs. ayer
-      </div>
+      <p className="text-sm text-[#a1a1aa]">Ventas esta jornada</p>
+      <p className="mt-2 text-2xl font-bold text-white">{formatearPrecio(resumen.ventas_jornada)}</p>
+      {resumen.hay_jornada_anterior && (
+        <div
+          className={`mt-1 flex items-center gap-1 text-xs font-medium ${subio ? 'text-green-400' : 'text-red-400'}`}
+        >
+          {subio ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {Math.abs(resumen.variacion_jornada).toFixed(0)}% vs. jornada anterior
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ const {
   eliminarItem,
   enviarCocina,
   pedirCuenta,
+  reabrirCuenta,
   cobrar,
   cancelar,
   obtenerCocina,
@@ -49,6 +50,11 @@ router.patch(
 );
 router.post('/pedidos/:id/enviar-cocina', verificarRol('mesero', 'gerente', 'admin'), enviarCocina);
 router.post('/pedidos/:id/pedir-cuenta', verificarRol('mesero', 'cajero', 'gerente', 'admin'), pedirCuenta);
+router.post(
+  '/pedidos/:id/reabrir-cuenta',
+  verificarRol('mesero', 'cajero', 'gerente', 'admin'),
+  reabrirCuenta
+);
 router.post('/pedidos/:id/cobrar', verificarRol('cajero', 'gerente', 'admin'), cobrar);
 router.post('/pedidos/:id/cancelar', verificarRol('gerente', 'admin'), cancelar);
 

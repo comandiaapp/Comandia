@@ -60,11 +60,15 @@ async function productosMasVendidos(req, res) {
 
 async function resumenDashboard(req, res) {
   const hoy = hoyISO();
-  const ayer = sumarDias(hoy, -1);
   const inicioSemana = sumarDias(hoy, -6);
 
   try {
-    const resumen = await reporteModel.resumenDashboard(req.usuario.restauranteId, hoy, ayer, inicioSemana);
+    const resumen = await reporteModel.resumenDashboard(
+      req.usuario.restauranteId,
+      req.usuario.sucursalId,
+      hoy,
+      inicioSemana
+    );
     return ok(res, { resumen });
   } catch (err) {
     console.error('Error al generar el resumen del dashboard:', err);

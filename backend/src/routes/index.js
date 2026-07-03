@@ -11,5 +11,7 @@ router.use('/', require('./inventario'));
 router.use('/', require('./reportes'));
 router.use('/', require('./jornadas'));
 router.use('/', require('./contaduria'));
+router.use('/', require('./compras'));
+router.use('/', require('./configuracion'));
 
 module.exports = router;

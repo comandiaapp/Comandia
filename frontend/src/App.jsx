@@ -13,8 +13,9 @@ import Cocina from './pages/Cocina';
 import Pedidos from './pages/Pedidos';
 import Reportes from './pages/Reportes';
 import Inventario from './pages/Inventario';
+import Compras from './pages/Compras';
 import Contaduria from './pages/Contaduria';
-import Proximamente from './pages/Proximamente';
+import Configuracion from './pages/Configuracion';
 import NotFound from './pages/NotFound';
 
 function Inicio() {
@@ -98,6 +99,14 @@ function App() {
           }
         />
         <Route
+          path="/compras"
+          element={
+            <ConLayout>
+              <Compras />
+            </ConLayout>
+          }
+        />
+        <Route
           path="/reportes"
           element={
             <ConLayout>
@@ -117,7 +126,7 @@ function App() {
           path="/configuracion"
           element={
             <ConLayout>
-              <Proximamente titulo="Configuración" />
+              <Configuracion />
             </ConLayout>
           }
         />

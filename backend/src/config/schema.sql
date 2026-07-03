@@ -304,6 +304,35 @@ CREATE TABLE IF NOT EXISTS categorias_contables (
   activa BOOLEAN NOT NULL DEFAULT true
 );
 
+CREATE TABLE IF NOT EXISTS ordenes_compra (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  numero INTEGER NOT NULL,
+  estado VARCHAR(20) NOT NULL DEFAULT 'borrador'
+    CHECK (estado IN ('borrador', 'enviada', 'recibida', 'cancelada')),
+  proveedor VARCHAR(255),
+  notas TEXT,
+  total_estimado DECIMAL(12,2) NOT NULL DEFAULT 0,
+  fecha_esperada DATE,
+  fecha_recibida DATE,
+  usuario_id UUID REFERENCES usuarios(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS orden_compra_items (
+  id UUID PRIMARY KEY,
+  orden_id UUID NOT NULL REFERENCES ordenes_compra(id) ON DELETE CASCADE,
+  ingrediente_id UUID REFERENCES ingredientes(id) ON DELETE SET NULL,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre_ingrediente VARCHAR(255) NOT NULL,
+  cantidad_solicitada DECIMAL(12,3) NOT NULL,
+  cantidad_recibida DECIMAL(12,3) NOT NULL DEFAULT 0,
+  costo_unitario DECIMAL(12,2),
+  subtotal DECIMAL(12,2),
+  unidad_medida VARCHAR(20)
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_sucursales_restaurante_id ON sucursales(restaurante_id);
 
@@ -370,6 +399,12 @@ CREATE INDEX IF NOT EXISTS idx_transacciones_contables_jornada_id ON transaccion
 CREATE INDEX IF NOT EXISTS idx_empleados_jornada_restaurante_id ON empleados_jornada(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_empleados_jornada_jornada_id ON empleados_jornada(jornada_id);
 
+CREATE INDEX IF NOT EXISTS idx_ordenes_compra_restaurante_id ON ordenes_compra(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_ordenes_compra_estado ON ordenes_compra(estado);
+
+CREATE INDEX IF NOT EXISTS idx_orden_compra_items_orden_id ON orden_compra_items(orden_id);
+CREATE INDEX IF NOT EXISTS idx_orden_compra_items_restaurante_id ON orden_compra_items(restaurante_id);
+
 -- Migraciones: crear una tabla solo cuando falta no actualiza una tabla
 -- que ya existe, así que los cambios a restricciones de tablas existentes
 -- van aquí como ALTER TABLE idempotentes.
@@ -410,3 +445,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mesas_numero_restaurante_activa
 -- 'numero_global' (el correlativo real para DIAN, nunca reinicia) se hace en
 -- initDB.js porque Postgres no soporta RENAME COLUMN IF EXISTS.
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS numero_jornada INTEGER;
+
+-- Datos de facturación DIAN y preferencias del restaurante, configurables
+-- desde la página de Configuración.
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS nit VARCHAR(20);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS regimen VARCHAR(20) NOT NULL DEFAULT 'simplificado';
+ALTER TABLE restaurantes DROP CONSTRAINT IF EXISTS restaurantes_regimen_check;
+ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_regimen_check
+  CHECK (regimen IN ('simplificado', 'comun'));
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS departamento VARCHAR(100);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS porcentaje_impuesto DECIMAL(5,2) NOT NULL DEFAULT 0;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS porcentaje_propina_sugerida DECIMAL(5,2) NOT NULL DEFAULT 10;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS moneda VARCHAR(10) NOT NULL DEFAULT 'COP';
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS zona_horaria VARCHAR(50) NOT NULL DEFAULT 'America/Bogota';
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS permite_pedidos_sin_jornada BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS impresora_configurada BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS mensaje_ticket TEXT;
+
+-- Fuerza el cambio de password en el primer login de un usuario invitado
+-- desde Configuración > Usuarios y roles (nace con password temporal).
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN NOT NULL DEFAULT false;

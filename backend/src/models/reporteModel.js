@@ -3,7 +3,7 @@ const jornadaModel = require('./jornadaModel');
 
 async function ventasDia(restauranteId, fecha) {
   const { rows: pedidos } = await pool.query(
-    `SELECT p.id, p.numero, p.mesa_id, m.numero AS mesa_numero, p.tipo, p.subtotal, p.descuento,
+    `SELECT p.id, p.numero_global, p.numero_jornada, p.mesa_id, m.numero AS mesa_numero, p.tipo, p.subtotal, p.descuento,
             p.impuesto, p.propina, p.total, p.pagado_con, p.created_at, p.updated_at,
             COALESCE(
               (SELECT SUM(pi.cantidad) FROM pedido_items pi

@@ -342,7 +342,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
           </button>
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-lg font-bold text-white">
-              Mesa {mesa?.numero} — Pedido #{String(pedido?.numero ?? 0).padStart(3, '0')}
+              Mesa {mesa?.numero} — Pedido #{String(pedido?.numero_jornada ?? 0).padStart(2, '0')}
             </h1>
             <span
               className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold"

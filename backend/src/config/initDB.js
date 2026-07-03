@@ -4,8 +4,26 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const pool = require('./database');
+const contaduriaModel = require('../models/contaduriaModel');
 
 const EMAIL_RESTAURANTE_DEMO = 'demo@comandia.test';
+
+// pedidos.numero (SERIAL) se renombró a numero_global (el correlativo real
+// para DIAN); numero_jornada es el correlativo que ve el usuario y reinicia
+// en cada jornada. Postgres no soporta "RENAME COLUMN IF EXISTS", así que la
+// condición se resuelve consultando information_schema.
+async function migrarNumeroPedidos() {
+  const { rows } = await pool.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_name = 'pedidos' AND column_name IN ('numero', 'numero_global')`
+  );
+  const columnas = rows.map((r) => r.column_name);
+
+  if (columnas.includes('numero') && !columnas.includes('numero_global')) {
+    await pool.query('ALTER TABLE pedidos RENAME COLUMN numero TO numero_global');
+    console.log('  columna "pedidos.numero" renombrada a "numero_global"');
+  }
+}
 
 async function seedDatosEjemplo() {
   const { rows: existentes } = await pool.query('SELECT id FROM restaurantes WHERE email = $1', [
@@ -180,6 +198,9 @@ async function seedDatosEjemplo() {
     console.log('  receta de "Hamburguesa de Costilla" creada');
   }
 
+  await contaduriaModel.crearCategoriasDefault(pool, restauranteId);
+  console.log('  categorías contables predeterminadas creadas');
+
   console.log('\nDatos de ejemplo insertados correctamente.');
 }
 
@@ -193,6 +214,8 @@ async function initDB() {
     .filter(Boolean);
 
   console.log('Inicializando base de datos de Comandia...\n');
+
+  await migrarNumeroPedidos();
 
   for (const statement of statements) {
     await pool.query(statement);

@@ -5,6 +5,7 @@ const pool = require('../config/database');
 const restauranteModel = require('../models/restauranteModel');
 const sucursalModel = require('../models/sucursalModel');
 const usuarioModel = require('../models/usuarioModel');
+const contaduriaModel = require('../models/contaduriaModel');
 const { generarToken } = require('../utils/jwt');
 const { ok, error } = require('../utils/respuestas');
 
@@ -54,6 +55,8 @@ async function registro(req, res) {
       password_hash,
       rol: 'admin',
     });
+
+    await contaduriaModel.crearCategoriasDefault(client, restaurante.id);
 
     await client.query('COMMIT');
 

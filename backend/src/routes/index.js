@@ -10,5 +10,6 @@ router.use('/', require('./pedidos'));
 router.use('/', require('./inventario'));
 router.use('/', require('./reportes'));
 router.use('/', require('./jornadas'));
+router.use('/', require('./contaduria'));
 
 module.exports = router;

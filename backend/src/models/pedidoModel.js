@@ -55,9 +55,22 @@ async function crear({ id, restaurante_id, sucursal_id, mesa_id, jornada_id, usu
   try {
     await client.query('BEGIN');
 
+    // numero_jornada es el correlativo que ven meseros y cocina (#01, #02...)
+    // y reinicia con cada jornada. Sin jornada activa no hay contra qué
+    // contar, así que se completa después del INSERT con el correlativo
+    // global como respaldo (nunca queda vacío).
+    let numeroJornada = null;
+    if (jornada_id) {
+      const { rows: countRows } = await client.query(
+        `SELECT COUNT(*) + 1 AS numero FROM pedidos WHERE jornada_id = $1 AND restaurante_id = $2`,
+        [jornada_id, restaurante_id]
+      );
+      numeroJornada = Number(countRows[0].numero);
+    }
+
     const { rows } = await client.query(
-      `INSERT INTO pedidos (id, restaurante_id, sucursal_id, mesa_id, jornada_id, usuario_id, tipo, notas)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO pedidos (id, restaurante_id, sucursal_id, mesa_id, jornada_id, usuario_id, tipo, notas, numero_jornada)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         id,
@@ -68,9 +81,18 @@ async function crear({ id, restaurante_id, sucursal_id, mesa_id, jornada_id, usu
         usuario_id,
         tipo ?? 'mesa',
         notas ?? null,
+        numeroJornada,
       ]
     );
-    const pedido = rows[0];
+    let pedido = rows[0];
+
+    if (!jornada_id) {
+      const { rows: sinJornadaRows } = await client.query(
+        `UPDATE pedidos SET numero_jornada = numero_global WHERE id = $1 RETURNING *`,
+        [pedido.id]
+      );
+      pedido = sinJornadaRows[0];
+    }
 
     if (mesa_id) {
       await client.query(
@@ -534,7 +556,7 @@ const ESTADOS_ITEM_VISIBLES_COCINA = ['pendiente', 'en_preparacion', 'listo'];
 
 async function obtenerCocina(restauranteId) {
   const { rows: pedidos } = await pool.query(
-    `SELECT p.id, p.numero, p.tipo, p.estado, p.mesa_id, m.numero AS mesa_numero
+    `SELECT p.id, p.numero_global, p.numero_jornada, p.tipo, p.estado, p.mesa_id, m.numero AS mesa_numero
      FROM pedidos p
      LEFT JOIN mesas m ON m.id = p.mesa_id
      WHERE p.restaurante_id = $1 AND p.estado = ANY($2::varchar[])

@@ -172,7 +172,8 @@ CREATE TABLE IF NOT EXISTS pedidos (
   mesa_id UUID REFERENCES mesas(id) ON DELETE SET NULL,
   jornada_id UUID REFERENCES jornadas(id) ON DELETE SET NULL,
   usuario_id UUID NOT NULL REFERENCES usuarios(id),
-  numero SERIAL,
+  numero_global SERIAL,
+  numero_jornada INTEGER,
   tipo VARCHAR(20) NOT NULL DEFAULT 'mesa'
     CHECK (tipo IN ('mesa', 'barra', 'delivery', 'take_away')),
   estado VARCHAR(20) NOT NULL DEFAULT 'abierto'
@@ -260,6 +261,49 @@ CREATE TABLE IF NOT EXISTS movimientos_inventario (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS transacciones_contables (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  jornada_id UUID REFERENCES jornadas(id) ON DELETE SET NULL,
+  tipo VARCHAR(20) NOT NULL
+    CHECK (tipo IN ('ingreso', 'egreso', 'retiro', 'nomina', 'compra')),
+  categoria VARCHAR(100),
+  descripcion TEXT NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  metodo_pago VARCHAR(20)
+    CHECK (metodo_pago IS NULL OR metodo_pago IN ('efectivo', 'tarjeta', 'transferencia', 'nequi')),
+  proveedor VARCHAR(255),
+  numero_factura VARCHAR(100),
+  fecha DATE NOT NULL,
+  usuario_id UUID REFERENCES usuarios(id),
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS empleados_jornada (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  jornada_id UUID NOT NULL REFERENCES jornadas(id) ON DELETE CASCADE,
+  nombre_empleado VARCHAR(255) NOT NULL,
+  rol_empleado VARCHAR(50)
+    CHECK (rol_empleado IS NULL OR rol_empleado IN ('mesero', 'cocina', 'cajero', 'domiciliario', 'otro')),
+  hora_entrada TIMESTAMPTZ,
+  hora_salida TIMESTAMPTZ,
+  pago_dia DECIMAL(12,2),
+  notas TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS categorias_contables (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre VARCHAR(100) NOT NULL,
+  tipo VARCHAR(20)
+    CHECK (tipo IS NULL OR tipo IN ('ingreso', 'egreso')),
+  color VARCHAR(7),
+  activa BOOLEAN NOT NULL DEFAULT true
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_sucursales_restaurante_id ON sucursales(restaurante_id);
 
@@ -318,6 +362,14 @@ CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_ingrediente_id ON movimien
 CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_tipo ON movimientos_inventario(tipo);
 CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_created_at ON movimientos_inventario(created_at);
 
+CREATE INDEX IF NOT EXISTS idx_transacciones_contables_restaurante_id ON transacciones_contables(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_transacciones_contables_tipo ON transacciones_contables(tipo);
+CREATE INDEX IF NOT EXISTS idx_transacciones_contables_fecha ON transacciones_contables(fecha);
+CREATE INDEX IF NOT EXISTS idx_transacciones_contables_jornada_id ON transacciones_contables(jornada_id);
+
+CREATE INDEX IF NOT EXISTS idx_empleados_jornada_restaurante_id ON empleados_jornada(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_empleados_jornada_jornada_id ON empleados_jornada(jornada_id);
+
 -- Migraciones: crear una tabla solo cuando falta no actualiza una tabla
 -- que ya existe, así que los cambios a restricciones de tablas existentes
 -- van aquí como ALTER TABLE idempotentes.
@@ -352,3 +404,9 @@ ALTER TABLE mesas DROP CONSTRAINT IF EXISTS mesas_numero_restaurante_id_key;
 DROP INDEX IF EXISTS mesas_numero_restaurante_id_key;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mesas_numero_restaurante_activa
   ON mesas(numero, restaurante_id) WHERE activa = true;
+
+-- 'numero_jornada' es el correlativo que ven meseros y cocina (#01, #02...),
+-- reinicia en cada jornada. El renombre de la vieja columna 'numero' a
+-- 'numero_global' (el correlativo real para DIAN, nunca reinicia) se hace en
+-- initDB.js porque Postgres no soporta RENAME COLUMN IF EXISTS.
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS numero_jornada INTEGER;

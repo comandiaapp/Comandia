@@ -166,6 +166,7 @@ function TabHoy() {
             <table className="w-full text-left text-sm">
               <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
                 <tr>
+                  <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Hora</th>
                   <th className="px-4 py-3">Mesa</th>
                   <th className="px-4 py-3">Items</th>
@@ -176,6 +177,10 @@ function TabHoy() {
               <tbody>
                 {reporte.pedidos.map((p) => (
                   <tr key={p.id} className="border-t border-[#2a2a2a] bg-[#141414]">
+                    <td className="px-4 py-3 font-semibold text-white">
+                      #{String(p.numero_jornada).padStart(2, '0')}
+                      <span className="ml-1 font-normal text-[#a1a1aa]">(Global: #{p.numero_global})</span>
+                    </td>
                     <td className="px-4 py-3 text-[#a1a1aa]">{formatearHoraCorta(p.updated_at)}</td>
                     <td className="px-4 py-3 text-white">{p.mesa_numero || p.tipo}</td>
                     <td className="px-4 py-3 text-[#a1a1aa]">{p.cantidad_items}</td>
@@ -185,7 +190,7 @@ function TabHoy() {
                 ))}
                 {reporte.pedidos.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-[#a1a1aa]">
+                    <td colSpan={6} className="px-4 py-8 text-center text-[#a1a1aa]">
                       No hay pedidos pagados en esta fecha.
                     </td>
                   </tr>

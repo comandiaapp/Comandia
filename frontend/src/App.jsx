@@ -13,6 +13,7 @@ import Cocina from './pages/Cocina';
 import Pedidos from './pages/Pedidos';
 import Reportes from './pages/Reportes';
 import Inventario from './pages/Inventario';
+import Contaduria from './pages/Contaduria';
 import Proximamente from './pages/Proximamente';
 import NotFound from './pages/NotFound';
 
@@ -101,6 +102,14 @@ function App() {
           element={
             <ConLayout>
               <Reportes />
+            </ConLayout>
+          }
+        />
+        <Route
+          path="/contaduria"
+          element={
+            <ConLayout>
+              <Contaduria />
             </ConLayout>
           }
         />

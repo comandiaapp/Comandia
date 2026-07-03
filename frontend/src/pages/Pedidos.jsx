@@ -109,7 +109,8 @@ function Pedidos() {
     if (tipoFiltro !== 'todos' && p.tipo !== tipoFiltro) return false;
     if (busqueda) {
       const termino = busqueda.trim().toLowerCase();
-      const coincideNumero = String(p.numero).includes(termino);
+      const coincideNumero =
+        String(p.numero_jornada).includes(termino) || String(p.numero_global).includes(termino);
       const coincideMesa = (p.mesa_numero || '').toLowerCase().includes(termino);
       if (!coincideNumero && !coincideMesa) return false;
     }
@@ -206,7 +207,8 @@ function Pedidos() {
                 {pedidosFiltrados.map((p) => (
                   <tr key={p.id} className="border-t border-[#2a2a2a] bg-[#141414]">
                     <td className="px-4 py-3 font-semibold text-white">
-                      #{String(p.numero).padStart(3, '0')}
+                      #{String(p.numero_jornada).padStart(2, '0')}
+                      <span className="ml-1 font-normal text-[#a1a1aa]">(Global: #{p.numero_global})</span>
                     </td>
                     <td className="px-4 py-3 text-white">{p.mesa_numero || LABEL_TIPO[p.tipo] || p.tipo}</td>
                     <td className="px-4 py-3 text-[#a1a1aa]">{formatearHora(p.created_at)}</td>
@@ -309,7 +311,14 @@ function ModalDetallePedido({ pedidoId, onClose }) {
   }, [pedidoId]);
 
   return (
-    <Modal titulo={pedido ? `Pedido #${String(pedido.numero).padStart(3, '0')}` : 'Detalle del pedido'} onClose={onClose}>
+    <Modal
+      titulo={
+        pedido
+          ? `Pedido #${String(pedido.numero_jornada).padStart(2, '0')} (Global: #${pedido.numero_global})`
+          : 'Detalle del pedido'
+      }
+      onClose={onClose}
+    >
       {cargando || !pedido ? (
         <Spinner />
       ) : (

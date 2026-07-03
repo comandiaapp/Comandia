@@ -240,7 +240,7 @@ function TarjetaPedidoCocina({ pedido, horaActual, saliendo, onClickItem, onTodo
       <div className="flex items-start justify-between gap-3 border-b border-[#2a2a2a] px-5 py-4">
         <div>
           <p className="text-[32px] font-black leading-none text-white">
-            #{String(pedido.numero).padStart(3, '0')}
+            #{String(pedido.numero_jornada ?? pedido.numero_global).padStart(2, '0')}
           </p>
           <p className="mt-1.5 text-xl font-semibold text-[#d4d4d8]">{etiquetaOrigen(pedido)}</p>
         </div>

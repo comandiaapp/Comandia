@@ -8,6 +8,7 @@ import {
   ChefHat,
   Package,
   BarChart3,
+  BookOpen,
   Settings,
   LogOut,
   Menu as MenuIcon,
@@ -24,12 +25,15 @@ const NAV_ITEMS = [
   { to: '/cocina', label: 'Cocina', icon: ChefHat },
   { to: '/inventario', label: 'Inventario', icon: Package },
   { to: '/reportes', label: 'Reportes', icon: BarChart3 },
+  { to: '/contaduria', label: 'Contaduría', icon: BookOpen, soloGestor: true },
   { to: '/configuracion', label: 'Configuración', icon: Settings },
 ];
 
 function Sidebar() {
   const [abierto, setAbierto] = useState(false);
   const { usuario, restaurante, logout } = useAuth();
+  const esGestor = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
+  const itemsVisibles = NAV_ITEMS.filter((item) => !item.soloGestor || esGestor);
 
   return (
     <>
@@ -61,7 +65,7 @@ function Sidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) =>
+          {itemsVisibles.map(({ to, label, icon: Icon }) =>
             to === '/cocina' ? (
               <a
                 key={to}

@@ -2,14 +2,25 @@ const { v4: uuidv4 } = require('uuid');
 
 const pedidoModel = require('../models/pedidoModel');
 const inventarioModel = require('../models/inventarioModel');
+const jornadaModel = require('../models/jornadaModel');
+const contaduriaModel = require('../models/contaduriaModel');
 const { ok, error } = require('../utils/respuestas');
 
 const TIPOS_VALIDOS = ['mesa', 'barra', 'delivery', 'take_away'];
 const METODOS_PAGO_VALIDOS = ['efectivo', 'tarjeta', 'qr', 'nequi', 'transferencia', 'mixto'];
 const ESTADOS_ACTIVOS_FILTRO = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pedida'];
 
+// transacciones_contables.metodo_pago solo acepta este subconjunto de los
+// métodos de pago de pedidos; 'qr' y 'mixto' no tienen equivalente contable
+// directo y se registran sin método específico.
+const METODOS_PAGO_CONTABLES = ['efectivo', 'tarjeta', 'transferencia', 'nequi'];
+
+function fechaBogota(fecha) {
+  return new Date(fecha).toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' });
+}
+
 async function crear(req, res) {
-  const { mesa_id, sucursal_id, jornada_id, tipo, notas } = req.body;
+  const { mesa_id, sucursal_id, tipo, notas } = req.body;
 
   if (tipo !== undefined && !TIPOS_VALIDOS.includes(tipo)) {
     return error(res, `Tipo inválido. Valores permitidos: ${TIPOS_VALIDOS.join(', ')}`, 400);
@@ -24,12 +35,18 @@ async function crear(req, res) {
       }
     }
 
+    const sucursalId = sucursal_id ?? req.usuario.sucursalId;
+    // El número de jornada se calcula a partir de la jornada abierta del
+    // servidor, no de lo que mande el cliente, para que #01, #02... siempre
+    // cuadre con la jornada realmente activa.
+    const jornadaActual = await jornadaModel.obtenerAbierta(req.usuario.restauranteId, sucursalId);
+
     const pedido = await pedidoModel.crear({
       id: uuidv4(),
       restaurante_id: req.usuario.restauranteId,
-      sucursal_id: sucursal_id ?? req.usuario.sucursalId,
+      sucursal_id: sucursalId,
       mesa_id,
-      jornada_id,
+      jornada_id: jornadaActual ? jornadaActual.id : null,
       usuario_id: req.usuario.userId,
       tipo,
       notas,
@@ -225,6 +242,23 @@ async function cobrar(req, res) {
     inventarioModel
       .descontarStockPorVenta(pedido.id, req.usuario.restauranteId, req.usuario.userId)
       .catch((err) => console.error('Error al descontar stock por venta:', err));
+
+    // Toda venta cobrada se refleja automáticamente en Contaduría como un
+    // ingreso; el dueño solo registra manualmente egresos y otros ingresos.
+    contaduriaModel
+      .crearTransaccion({
+        id: uuidv4(),
+        restaurante_id: req.usuario.restauranteId,
+        jornada_id: pedido.jornada_id,
+        tipo: 'ingreso',
+        categoria: 'Venta',
+        descripcion: `Venta - Pedido #${String(pedido.numero_jornada).padStart(2, '0')}`,
+        monto: pedido.total,
+        metodo_pago: METODOS_PAGO_CONTABLES.includes(pedido.pagado_con) ? pedido.pagado_con : null,
+        fecha: fechaBogota(pedido.pagado_at),
+        usuario_id: req.usuario.userId,
+      })
+      .catch((err) => console.error('Error al registrar la venta en contaduría:', err));
 
     return ok(res, { pedido });
   } catch (err) {

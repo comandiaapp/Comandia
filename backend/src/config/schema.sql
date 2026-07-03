@@ -219,6 +219,48 @@ CREATE TABLE IF NOT EXISTS pedido_item_modificadores (
   precio_extra DECIMAL(12,2) NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS ingredientes (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  nombre VARCHAR(255) NOT NULL,
+  descripcion TEXT,
+  unidad_medida VARCHAR(20) NOT NULL
+    CHECK (unidad_medida IN ('unidad', 'kg', 'g', 'l', 'ml', 'porcion')),
+  stock_actual DECIMAL(12,3) NOT NULL DEFAULT 0,
+  stock_minimo DECIMAL(12,3) NOT NULL DEFAULT 0,
+  stock_maximo DECIMAL(12,3),
+  costo_unitario DECIMAL(12,2) NOT NULL DEFAULT 0,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS recetas (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  producto_id UUID NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+  ingrediente_id UUID NOT NULL REFERENCES ingredientes(id) ON DELETE CASCADE,
+  cantidad DECIMAL(12,3) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (producto_id, ingrediente_id)
+);
+
+CREATE TABLE IF NOT EXISTS movimientos_inventario (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  ingrediente_id UUID NOT NULL REFERENCES ingredientes(id) ON DELETE CASCADE,
+  tipo VARCHAR(20) NOT NULL
+    CHECK (tipo IN ('entrada', 'salida', 'merma', 'ajuste', 'venta')),
+  cantidad DECIMAL(12,3) NOT NULL,
+  stock_antes DECIMAL(12,3) NOT NULL,
+  stock_despues DECIMAL(12,3) NOT NULL,
+  costo_unitario DECIMAL(12,2),
+  motivo TEXT,
+  pedido_id UUID REFERENCES pedidos(id) ON DELETE SET NULL,
+  usuario_id UUID REFERENCES usuarios(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_sucursales_restaurante_id ON sucursales(restaurante_id);
 
@@ -263,6 +305,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pedidos_mesa_activo
 CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido_id ON pedido_items(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_estado ON pedido_items(estado);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_restaurante_id ON pedido_items(restaurante_id);
+
+CREATE INDEX IF NOT EXISTS idx_ingredientes_restaurante_id ON ingredientes(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_ingredientes_activo ON ingredientes(activo);
+CREATE INDEX IF NOT EXISTS idx_ingredientes_stock_actual ON ingredientes(stock_actual);
+
+CREATE INDEX IF NOT EXISTS idx_recetas_producto_id ON recetas(producto_id);
+CREATE INDEX IF NOT EXISTS idx_recetas_ingrediente_id ON recetas(ingrediente_id);
+CREATE INDEX IF NOT EXISTS idx_recetas_restaurante_id ON recetas(restaurante_id);
+
+CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_restaurante_id ON movimientos_inventario(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_ingrediente_id ON movimientos_inventario(ingrediente_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_tipo ON movimientos_inventario(tipo);
+CREATE INDEX IF NOT EXISTS idx_movimientos_inventario_created_at ON movimientos_inventario(created_at);
 
 -- Migraciones: crear una tabla solo cuando falta no actualiza una tabla
 -- que ya existe, así que los cambios a restricciones de tablas existentes

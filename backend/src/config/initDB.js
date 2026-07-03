@@ -137,6 +137,49 @@ async function seedDatosEjemplo() {
   );
   console.log('  1 mesa remota de ejemplo creada ("Domicilio-1")');
 
+  const ingredientesSeed = [
+    { nombre: 'Pan de hamburguesa', unidad_medida: 'unidad', stock_actual: 20, stock_minimo: 5 },
+    { nombre: 'Carne de res 150g', unidad_medida: 'porcion', stock_actual: 15, stock_minimo: 5 },
+    { nombre: 'Queso', unidad_medida: 'g', stock_actual: 500, stock_minimo: 100 },
+    { nombre: 'Lechuga', unidad_medida: 'g', stock_actual: 300, stock_minimo: 50 },
+    { nombre: 'Papa', unidad_medida: 'kg', stock_actual: 5, stock_minimo: 1 },
+    { nombre: 'Limón', unidad_medida: 'unidad', stock_actual: 30, stock_minimo: 10 },
+  ];
+
+  const idsIngredientes = {};
+  for (const ingrediente of ingredientesSeed) {
+    const id = uuidv4();
+    idsIngredientes[ingrediente.nombre] = id;
+    await pool.query(
+      `INSERT INTO ingredientes (id, restaurante_id, nombre, unidad_medida, stock_actual, stock_minimo)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, restauranteId, ingrediente.nombre, ingrediente.unidad_medida, ingrediente.stock_actual, ingrediente.stock_minimo]
+    );
+    console.log(`  ingrediente "${ingrediente.nombre}" creado`);
+  }
+
+  const { rows: hamburguesaRows } = await pool.query(
+    `SELECT id FROM productos WHERE restaurante_id = $1 AND nombre = $2`,
+    [restauranteId, 'Hamburguesa de Costilla']
+  );
+  if (hamburguesaRows.length > 0) {
+    const productoId = hamburguesaRows[0].id;
+    const recetaSeed = [
+      { nombre: 'Pan de hamburguesa', cantidad: 1 },
+      { nombre: 'Carne de res 150g', cantidad: 1 },
+      { nombre: 'Queso', cantidad: 30 },
+      { nombre: 'Lechuga', cantidad: 20 },
+    ];
+    for (const receta of recetaSeed) {
+      await pool.query(
+        `INSERT INTO recetas (id, restaurante_id, producto_id, ingrediente_id, cantidad)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [uuidv4(), restauranteId, productoId, idsIngredientes[receta.nombre], receta.cantidad]
+      );
+    }
+    console.log('  receta de "Hamburguesa de Costilla" creada');
+  }
+
   console.log('\nDatos de ejemplo insertados correctamente.');
 }
 

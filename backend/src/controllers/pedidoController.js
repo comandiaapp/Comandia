@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 
 const pedidoModel = require('../models/pedidoModel');
+const inventarioModel = require('../models/inventarioModel');
 const { ok, error } = require('../utils/respuestas');
 
 const TIPOS_VALIDOS = ['mesa', 'barra', 'delivery', 'take_away'];
@@ -218,6 +219,13 @@ async function cobrar(req, res) {
     if (!pedido) {
       return error(res, 'Pedido no encontrado', 404);
     }
+
+    // Descuenta el stock de ingredientes en background: no debe retrasar
+    // ni bloquear la respuesta del cobro si falla.
+    inventarioModel
+      .descontarStockPorVenta(pedido.id, req.usuario.restauranteId, req.usuario.userId)
+      .catch((err) => console.error('Error al descontar stock por venta:', err));
+
     return ok(res, { pedido });
   } catch (err) {
     console.error('Error al cobrar el pedido:', err);

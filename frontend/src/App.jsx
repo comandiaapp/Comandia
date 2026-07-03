@@ -12,6 +12,7 @@ import Mesas from './pages/Mesas';
 import Cocina from './pages/Cocina';
 import Pedidos from './pages/Pedidos';
 import Reportes from './pages/Reportes';
+import Inventario from './pages/Inventario';
 import Proximamente from './pages/Proximamente';
 import NotFound from './pages/NotFound';
 
@@ -91,7 +92,7 @@ function App() {
           path="/inventario"
           element={
             <ConLayout>
-              <Proximamente titulo="Inventario" />
+              <Inventario />
             </ConLayout>
           }
         />

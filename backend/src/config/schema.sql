@@ -162,8 +162,7 @@ CREATE TABLE IF NOT EXISTS mesas (
   posicion_y DECIMAL(5,2) NOT NULL DEFAULT 0,
   activa BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (numero, restaurante_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS pedidos (
@@ -343,3 +342,13 @@ ALTER TABLE pedidos ADD CONSTRAINT pedidos_pagado_con_check
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cuenta_pedida_at TIMESTAMPTZ;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS pagado_at TIMESTAMPTZ;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS mesa_liberada_at TIMESTAMPTZ;
+
+-- Una mesa eliminada (soft delete, activa = false) debe poder recrearse con
+-- el mismo número (p. ej. "Domicilio-1" tras liberarse en una jornada
+-- nueva). La UNIQUE(numero, restaurante_id) original lo bloqueaba para
+-- siempre, así que se reemplaza por un índice único parcial que solo
+-- aplica a las mesas activas.
+ALTER TABLE mesas DROP CONSTRAINT IF EXISTS mesas_numero_restaurante_id_key;
+DROP INDEX IF EXISTS mesas_numero_restaurante_id_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mesas_numero_restaurante_activa
+  ON mesas(numero, restaurante_id) WHERE activa = true;

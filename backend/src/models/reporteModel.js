@@ -12,7 +12,8 @@ async function ventasDia(restauranteId, fecha) {
             )::int AS cantidad_items
      FROM pedidos p
      LEFT JOIN mesas m ON m.id = p.mesa_id
-     WHERE p.restaurante_id = $1 AND p.estado = 'pagado' AND p.updated_at::date = $2
+     WHERE p.restaurante_id = $1 AND p.estado = 'pagado'
+       AND DATE(p.updated_at AT TIME ZONE 'America/Bogota') = $2
      ORDER BY p.updated_at ASC`,
     [restauranteId, fecha]
   );
@@ -55,14 +56,14 @@ async function ventasDia(restauranteId, fecha) {
 
 async function ventasPeriodo(restauranteId, fechaInicio, fechaFin) {
   const { rows: porDia } = await pool.query(
-    `SELECT updated_at::date AS fecha,
+    `SELECT DATE(updated_at AT TIME ZONE 'America/Bogota') AS fecha,
             COALESCE(SUM(total), 0) AS total_ventas,
             COUNT(*)::int AS cantidad_pedidos
      FROM pedidos
      WHERE restaurante_id = $1 AND estado = 'pagado'
-       AND updated_at::date BETWEEN $2 AND $3
-     GROUP BY updated_at::date
-     ORDER BY updated_at::date ASC`,
+       AND DATE(updated_at AT TIME ZONE 'America/Bogota') BETWEEN $2 AND $3
+     GROUP BY DATE(updated_at AT TIME ZONE 'America/Bogota')
+     ORDER BY DATE(updated_at AT TIME ZONE 'America/Bogota') ASC`,
     [restauranteId, fechaInicio, fechaFin]
   );
 
@@ -92,7 +93,7 @@ async function productosMasVendidos(restauranteId, fechaInicio, fechaFin, limite
      JOIN pedidos p ON p.id = pi.pedido_id
      LEFT JOIN productos pr ON pr.id = pi.producto_id
      WHERE p.restaurante_id = $1 AND p.estado = 'pagado' AND pi.estado != 'cancelado'
-       AND p.updated_at::date BETWEEN $2 AND $3
+       AND DATE(p.updated_at AT TIME ZONE 'America/Bogota') BETWEEN $2 AND $3
      GROUP BY pi.producto_id, pi.nombre_producto
      ORDER BY cantidad_vendida DESC
      LIMIT $4`,
@@ -119,7 +120,8 @@ async function productosMasVendidos(restauranteId, fechaInicio, fechaFin, limite
 async function resumenDashboard(restauranteId, sucursalId, hoy, inicioSemana) {
   const { rows: ventasSemanaRows } = await pool.query(
     `SELECT COALESCE(SUM(total), 0) AS total
-     FROM pedidos WHERE restaurante_id = $1 AND estado = 'pagado' AND updated_at::date BETWEEN $2 AND $3`,
+     FROM pedidos WHERE restaurante_id = $1 AND estado = 'pagado'
+       AND DATE(updated_at AT TIME ZONE 'America/Bogota') BETWEEN $2 AND $3`,
     [restauranteId, inicioSemana, hoy]
   );
   const { rows: pedidosActivosRows } = await pool.query(
@@ -137,7 +139,7 @@ async function resumenDashboard(restauranteId, sucursalId, hoy, inicioSemana) {
      FROM pedido_items pi
      JOIN pedidos p ON p.id = pi.pedido_id
      WHERE p.restaurante_id = $1 AND p.estado = 'pagado' AND pi.estado != 'cancelado'
-       AND p.updated_at::date = $2
+       AND DATE(p.updated_at AT TIME ZONE 'America/Bogota') = $2
      GROUP BY pi.nombre_producto
      ORDER BY cantidad DESC
      LIMIT 1`,

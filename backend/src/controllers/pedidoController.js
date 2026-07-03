@@ -228,6 +228,9 @@ async function cobrar(req, res) {
 
     return ok(res, { pedido });
   } catch (err) {
+    if (err.montoInsuficiente) {
+      return error(res, err.message, 400);
+    }
     console.error('Error al cobrar el pedido:', err);
     return error(res, 'No se pudo cobrar el pedido', 500);
   }

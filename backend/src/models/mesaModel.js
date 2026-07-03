@@ -130,12 +130,13 @@ async function eliminar(id, restauranteId) {
   return rows[0] || null;
 }
 
-// Busca el número más alto usado alguna vez en el patrón "Domicilio-N" para
-// este restaurante (incluyendo mesas eliminadas, para nunca reutilizar un
-// número ya usado) y devuelve el siguiente correlativo.
+// Busca el número más alto en uso entre las mesas remotas activas (patrón
+// "Domicilio-N") para este restaurante. Las mesas eliminadas (soft delete)
+// se ignoran a propósito: el índice único parcial solo protege a las mesas
+// activas, así que un número liberado por eliminación puede reutilizarse.
 async function obtenerSiguienteNumeroRemoto(restauranteId) {
   const { rows } = await pool.query(
-    `SELECT numero FROM mesas WHERE restaurante_id = $1 AND numero LIKE 'Domicilio-%'`,
+    `SELECT numero FROM mesas WHERE restaurante_id = $1 AND numero LIKE 'Domicilio-%' AND activa = true`,
     [restauranteId]
   );
 
@@ -148,6 +149,23 @@ async function obtenerSiguienteNumeroRemoto(restauranteId) {
   }
 
   return `Domicilio-${maximo + 1}`;
+}
+
+// Al abrir una nueva jornada, las mesas remotas (domicilios) libres de la
+// jornada anterior se eliminan (soft delete) para que el contador de
+// numeración vuelva a empezar y el listado no acumule domicilios ya
+// atendidos. Las que siguen ocupadas (con pedido activo) no se tocan.
+async function eliminarRemotasLibres(restauranteId) {
+  const { rows } = await pool.query(
+    `UPDATE mesas SET activa = false, updated_at = now()
+     WHERE restaurante_id = $1
+       AND area_id = (SELECT id FROM areas WHERE es_remota = true AND restaurante_id = $1)
+       AND estado = 'libre'
+       AND activa = true
+     RETURNING *`,
+    [restauranteId]
+  );
+  return rows;
 }
 
 async function contarActivasEnArea(restauranteId, areaId) {
@@ -167,5 +185,6 @@ module.exports = {
   resetearPosiciones,
   eliminar,
   obtenerSiguienteNumeroRemoto,
+  eliminarRemotasLibres,
   contarActivasEnArea,
 };

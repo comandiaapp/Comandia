@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import { formatearPrecio } from '../utils/formato';
 import { getPedidos, getPedido } from '../utils/pedidos';
+import { formatearHora, fechaHoyBogota } from '../utils/fecha';
 
 const LABEL_ESTADO_PEDIDO = {
   abierto: 'Abierto',
@@ -56,17 +57,13 @@ const FILTROS_TIPO = [
 ];
 
 function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatearHora(fechaIso) {
-  if (!fechaIso) return '-';
-  return new Date(fechaIso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return fechaHoyBogota();
 }
 
 function formatearFechaHora(fechaIso) {
   if (!fechaIso) return '-';
   return new Date(fechaIso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

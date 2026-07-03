@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw, Phone, Clock } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, LayoutGrid, List, Settings, Move, RotateCcw, Phone, Clock, X } from 'lucide-react';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors } from '@dnd-kit/core';
 
 import Modal from '../components/Modal';
@@ -61,7 +61,12 @@ function redondearACuadricula(valor) {
 }
 
 function formatearHora(fechaIso) {
-  return new Date(fechaIso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Date(fechaIso).toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 // Pitido corto sin depender de un archivo de audio externo. Si el navegador
@@ -306,6 +311,18 @@ function Mesas() {
       toast.error(err.response?.data?.mensaje || 'No se pudo crear la mesa remota');
     } finally {
       setCreandoMesaRemota(false);
+    }
+  }
+
+  async function handleEliminarMesaRemota(mesa) {
+    if (!window.confirm(`¿Eliminar ${mesa.numero}? Si tiene un pedido activo, el pedido no se eliminará.`)) return;
+    try {
+      await eliminarMesa(mesa.id);
+      toast.success('Domicilio eliminado');
+      setMesasRemotas((prev) => prev.filter((m) => m.id !== mesa.id));
+      cargarPlano();
+    } catch {
+      toast.error('No se pudo eliminar el domicilio');
     }
   }
 
@@ -632,7 +649,9 @@ function Mesas() {
                   key={mesa.id}
                   mesa={mesa}
                   mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
+                  esGestor={esGestor}
                   onClick={() => handleClickMesa(mesa)}
+                  onEliminar={handleEliminarMesaRemota}
                 />
               ))}
 
@@ -958,40 +977,55 @@ function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
   );
 }
 
-function TarjetaMesaRemota({ mesa, mostrarBadgeListo, onClick }) {
+function TarjetaMesaRemota({ mesa, mostrarBadgeListo, esGestor, onClick, onEliminar }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
   const conCuentaPedida = mesa.pedido_estado === 'cuenta_pedida';
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative flex aspect-square w-[167px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
-      style={{ borderColor: color, backgroundColor: '#1a1a2e' }}
-    >
-      {mostrarBadgeListo && <BadgeListo />}
-      {conCuentaPedida && <BadgeCuentaPedida />}
-      <Phone size={14} className="text-[#a1a1aa]" />
-      <span className="max-w-full truncate text-2xl font-bold text-white">{mesa.numero}</span>
-      <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">
-        <Users size={12} />
-        {mesa.capacidad}
-      </span>
-      <span
-        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
-        style={{ color, backgroundColor: `${color}33` }}
+    <div className="relative aspect-square w-[167px] shrink-0">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-transform hover:scale-105"
+        style={{ borderColor: color, backgroundColor: '#1a1a2e' }}
       >
-        {LABEL_ESTADO[mesa.estado] || mesa.estado}
-      </span>
-      {conCuentaPedida && mesa.cuenta_pedida_at ? (
-        <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />
-      ) : (
-        <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
-          <Clock size={10} />
-          {mesa.horaPedido ? formatearHora(mesa.horaPedido) : 'Sin pedido'}
+        {mostrarBadgeListo && <BadgeListo />}
+        {conCuentaPedida && <BadgeCuentaPedida />}
+        <Phone size={14} className="text-[#a1a1aa]" />
+        <span className="max-w-full truncate text-2xl font-bold text-white">{mesa.numero}</span>
+        <span className="flex items-center gap-1 text-xs text-[#a1a1aa]">
+          <Users size={12} />
+          {mesa.capacidad}
         </span>
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+          style={{ color, backgroundColor: `${color}33` }}
+        >
+          {LABEL_ESTADO[mesa.estado] || mesa.estado}
+        </span>
+        {conCuentaPedida && mesa.cuenta_pedida_at ? (
+          <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />
+        ) : (
+          <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
+            <Clock size={10} />
+            {mesa.horaPedido ? formatearHora(mesa.horaPedido) : 'Sin pedido'}
+          </span>
+        )}
+      </button>
+      {esGestor && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEliminar(mesa);
+          }}
+          title="Eliminar domicilio"
+          className="absolute -bottom-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#333] bg-[#1a1a1a] text-[#a1a1aa] hover:border-red-500 hover:text-red-400"
+        >
+          <X size={12} />
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 

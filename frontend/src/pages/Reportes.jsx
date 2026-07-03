@@ -9,6 +9,7 @@ import { formatearPrecio } from '../utils/formato';
 import { getVentasDia, getVentasPeriodo, getProductosMasVendidos } from '../utils/reportes';
 import { getHistorialJornadas, reabrirJornada } from '../utils/jornadas';
 import { useAuth } from '../context/AuthContext';
+import { formatearHora, fechaHoyBogota } from '../utils/fecha';
 
 const LABEL_METODO_PAGO = {
   efectivo: 'Efectivo',
@@ -28,7 +29,7 @@ const TABS = [
 ];
 
 function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
+  return fechaHoyBogota();
 }
 
 function restarDias(fechaISO, dias) {
@@ -38,12 +39,13 @@ function restarDias(fechaISO, dias) {
 }
 
 function formatearHoraCorta(fechaIso) {
-  return new Date(fechaIso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return formatearHora(fechaIso);
 }
 
 function formatearFechaHora(fechaIso) {
   if (!fechaIso) return '-';
   return new Date(fechaIso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -212,7 +214,11 @@ function TabPeriodo() {
   }, [fechaInicio, fechaFin]);
 
   const datosGrafica = (reporte?.ventas_por_dia || []).map((d) => ({
-    label: new Date(`${d.fecha}`).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }),
+    label: new Date(`${d.fecha}`).toLocaleDateString('es-CO', {
+      timeZone: 'America/Bogota',
+      day: '2-digit',
+      month: '2-digit',
+    }),
     valor: d.total_ventas,
   }));
 
@@ -272,6 +278,7 @@ function TabPeriodo() {
                   <tr key={d.fecha} className="border-t border-[#2a2a2a] bg-[#141414]">
                     <td className="px-4 py-3 text-white">
                       {new Date(`${d.fecha}`).toLocaleDateString('es-CO', {
+                        timeZone: 'America/Bogota',
                         weekday: 'long',
                         day: '2-digit',
                         month: '2-digit',

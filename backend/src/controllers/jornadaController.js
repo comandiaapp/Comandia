@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 
 const jornadaModel = require('../models/jornadaModel');
+const mesaModel = require('../models/mesaModel');
 const { ok, error } = require('../utils/respuestas');
 
 async function abrirJornada(req, res) {
@@ -19,6 +20,15 @@ async function abrirJornada(req, res) {
       usuario_apertura_id: req.usuario.userId,
       monto_apertura,
     });
+
+    // Reinicia los domicilios de la jornada anterior que quedaron libres
+    // (sin pedido activo); los que siguen ocupados no se tocan. No debe
+    // bloquear la apertura de la jornada si falla.
+    try {
+      await mesaModel.eliminarRemotasLibres(req.usuario.restauranteId);
+    } catch (err) {
+      console.error('Error al reiniciar las mesas remotas libres:', err);
+    }
 
     return ok(res, { jornada }, 201);
   } catch (err) {

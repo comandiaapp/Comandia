@@ -166,7 +166,13 @@ function Cocina() {
 
         <div className="flex items-center gap-4">
           <span className="font-mono text-xl font-semibold text-white">
-            {horaActual.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+            {horaActual.toLocaleTimeString('es-CO', {
+              timeZone: 'America/Bogota',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            })}
           </span>
           <button
             type="button"

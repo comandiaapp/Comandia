@@ -18,6 +18,14 @@ class SinItemsPendientesError extends Error {
   }
 }
 
+class MontoInsuficienteError extends Error {
+  constructor(faltante) {
+    super(`Falta ${faltante.toFixed(2)} para completar el pago`);
+    this.montoInsuficiente = true;
+    this.faltante = faltante;
+  }
+}
+
 async function recalcularTotales(pedidoId, client) {
   const { rows: itemRows } = await client.query(
     `SELECT COALESCE(SUM(subtotal), 0) AS subtotal_items
@@ -150,7 +158,7 @@ async function obtenerTodos(restauranteId, filtros = {}) {
     i++;
   }
   if (filtros.fecha !== undefined) {
-    condiciones.push(`p.created_at::date = $${i}`);
+    condiciones.push(`DATE(p.created_at AT TIME ZONE 'America/Bogota') = $${i}`);
     valores.push(filtros.fecha);
     i++;
   }
@@ -452,6 +460,10 @@ async function cobrar(pedidoId, datos, restauranteId) {
     const total = Math.max(0, Number(pedidoActual.subtotal) - descuento + impuesto + propina);
 
     const montoRecibido = datos.monto_recibido !== undefined ? Number(datos.monto_recibido) : total;
+    if (montoRecibido < total) {
+      await client.query('ROLLBACK');
+      throw new MontoInsuficienteError(total - montoRecibido);
+    }
     const cambio = Math.max(0, montoRecibido - total);
 
     const { rows } = await client.query(

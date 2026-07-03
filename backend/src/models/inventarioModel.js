@@ -273,12 +273,12 @@ async function obtenerMovimientos(restauranteId, filtros = {}) {
     i++;
   }
   if (filtros.fecha_inicio !== undefined) {
-    condiciones.push(`mi.created_at::date >= $${i}`);
+    condiciones.push(`DATE(mi.created_at AT TIME ZONE 'America/Bogota') >= $${i}`);
     valores.push(filtros.fecha_inicio);
     i++;
   }
   if (filtros.fecha_fin !== undefined) {
-    condiciones.push(`mi.created_at::date <= $${i}`);
+    condiciones.push(`DATE(mi.created_at AT TIME ZONE 'America/Bogota') <= $${i}`);
     valores.push(filtros.fecha_fin);
     i++;
   }

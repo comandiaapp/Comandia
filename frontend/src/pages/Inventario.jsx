@@ -68,6 +68,7 @@ function formatearCantidad(valor) {
 function formatearFechaHora(fechaIso) {
   if (!fechaIso) return '-';
   return new Date(fechaIso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

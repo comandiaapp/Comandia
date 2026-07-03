@@ -911,8 +911,17 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
   const [montosMixto, setMontosMixto] = useState({});
   const [guardando, setGuardando] = useState(false);
 
-  const cambio = metodo === 'efectivo' && montoRecibido !== '' ? Math.max(0, Number(montoRecibido) - total) : 0;
+  const montoRecibidoNumero = Number(montoRecibido || 0);
+  const faltanteEfectivo = metodo === 'efectivo' && montoRecibido !== '' ? Math.max(0, total - montoRecibidoNumero) : 0;
+  const cambio =
+    metodo === 'efectivo' && montoRecibido !== '' && montoRecibidoNumero >= total
+      ? montoRecibidoNumero - total
+      : 0;
   const totalMixto = METODOS_MIXTO.reduce((suma, m) => suma + Number(montosMixto[m.value] || 0), 0);
+  const faltanteMixto = metodo === 'mixto' ? Math.max(0, total - totalMixto) : 0;
+
+  const montoInsuficiente =
+    (metodo === 'efectivo' && montoRecibidoNumero < total) || (metodo === 'mixto' && totalMixto < total);
 
   function handleCambiarMontoMixto(metodoValue, valor) {
     setMontosMixto((prev) => ({ ...prev, [metodoValue]: valor }));
@@ -920,8 +929,9 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (montoInsuficiente) return;
     setGuardando(true);
-    const monto = metodo === 'mixto' ? totalMixto : metodo === 'efectivo' ? Number(montoRecibido || 0) : total;
+    const monto = metodo === 'mixto' ? totalMixto : metodo === 'efectivo' ? montoRecibidoNumero : total;
     await onCobrar({ pagado_con: metodo, monto_recibido: monto });
     setGuardando(false);
   }
@@ -984,9 +994,15 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
               />
             </Campo>
             {montoRecibido !== '' && (
-              <p className="text-sm text-[#a1a1aa]">
-                Cambio: <span className="font-semibold text-white">{formatearPrecio(cambio)}</span>
-              </p>
+              faltanteEfectivo > 0 ? (
+                <p className="text-sm font-semibold text-red-500">
+                  Falta {formatearPrecio(faltanteEfectivo)} para completar el pago
+                </p>
+              ) : (
+                <p className="text-sm text-[#a1a1aa]">
+                  Cambio: <span className="font-semibold text-white">{formatearPrecio(cambio)}</span>
+                </p>
+              )
             )}
           </>
         )}
@@ -1008,15 +1024,21 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
               ))}
             </div>
             <p className="text-sm text-[#a1a1aa]">
-              Total combinado: <span className="font-semibold text-white">{formatearPrecio(totalMixto)}</span>
+              Total ingresado: <span className="font-semibold text-white">{formatearPrecio(totalMixto)}</span> /{' '}
+              {formatearPrecio(total)}
             </p>
+            {faltanteMixto > 0 && (
+              <p className="text-sm font-semibold text-red-500">
+                Falta {formatearPrecio(faltanteMixto)} para completar el pago
+              </p>
+            )}
           </div>
         )}
 
         <button
           type="submit"
-          disabled={guardando}
-          className="w-full rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
+          disabled={guardando || montoInsuficiente}
+          className="w-full rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {guardando ? 'Cobrando...' : 'Cobrar'}
         </button>

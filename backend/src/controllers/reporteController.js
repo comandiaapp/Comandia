@@ -2,7 +2,7 @@ const reporteModel = require('../models/reporteModel');
 const { ok, error } = require('../utils/respuestas');
 
 function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' });
 }
 
 function sumarDias(fechaISO, dias) {

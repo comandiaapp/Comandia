@@ -34,7 +34,14 @@ async function obtenerConfiguracion(req, res) {
 }
 
 async function actualizarConfiguracion(req, res) {
-  const { regimen, modo_operacion, porcentaje_impuesto, porcentaje_propina_sugerida } = req.body;
+  const {
+    regimen,
+    modo_operacion,
+    porcentaje_impuesto,
+    porcentaje_propina_sugerida,
+    factura_desde,
+    factura_hasta,
+  } = req.body;
 
   if (regimen !== undefined && !REGIMENES_VALIDOS.includes(regimen)) {
     return error(res, `Régimen inválido. Valores permitidos: ${REGIMENES_VALIDOS.join(', ')}`, 400);
@@ -50,6 +57,13 @@ async function actualizarConfiguracion(req, res) {
     (Number(porcentaje_propina_sugerida) < 0 || Number(porcentaje_propina_sugerida) > 100)
   ) {
     return error(res, 'El porcentaje de propina sugerida debe estar entre 0 y 100', 400);
+  }
+  if (
+    factura_desde !== undefined &&
+    factura_hasta !== undefined &&
+    Number(factura_desde) > Number(factura_hasta)
+  ) {
+    return error(res, 'El número "desde" no puede ser mayor que el número "hasta"', 400);
   }
 
   try {

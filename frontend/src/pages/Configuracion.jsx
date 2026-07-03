@@ -197,6 +197,13 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
   const [regimen, setRegimen] = useState(restaurante.regimen || 'simplificado');
   const [nit, setNit] = useState(restaurante.nit || '');
   const [mensajeTicket, setMensajeTicket] = useState(restaurante.mensaje_ticket || '');
+  const [numeroResolucionDian, setNumeroResolucionDian] = useState(restaurante.numero_resolucion_dian || '');
+  const [fechaResolucionDian, setFechaResolucionDian] = useState(
+    restaurante.fecha_resolucion_dian ? String(restaurante.fecha_resolucion_dian).slice(0, 10) : ''
+  );
+  const [prefijoFactura, setPrefijoFactura] = useState(restaurante.prefijo_factura || 'FE');
+  const [facturaDesde, setFacturaDesde] = useState(restaurante.factura_desde ?? 1);
+  const [facturaHasta, setFacturaHasta] = useState(restaurante.factura_hasta ?? 99999);
   const [guardando, setGuardando] = useState(false);
 
   const ivaEfectivo = ivaPreset === 'personalizado' ? Number(ivaPersonalizado || 0) : Number(ivaPreset);
@@ -209,6 +216,11 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
       regimen,
       nit: nit || null,
       mensaje_ticket: mensajeTicket || null,
+      numero_resolucion_dian: numeroResolucionDian || null,
+      fecha_resolucion_dian: fechaResolucionDian || null,
+      prefijo_factura: prefijoFactura || 'FE',
+      factura_desde: Number(facturaDesde) || 1,
+      factura_hasta: Number(facturaHasta) || 99999,
     });
     setGuardando(false);
   }
@@ -274,6 +286,59 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
         />
       </Campo>
 
+      <p className="pt-2 text-sm font-semibold text-white">Resolución de facturación DIAN</p>
+      <div className="grid grid-cols-2 gap-4">
+        <Campo label="Número de resolución">
+          <input
+            value={numeroResolucionDian}
+            onChange={(e) => setNumeroResolucionDian(e.target.value)}
+            disabled={!esAdmin}
+            className="input"
+            placeholder="Ej: 18764000001234"
+          />
+        </Campo>
+        <Campo label="Fecha de la resolución">
+          <input
+            type="date"
+            value={fechaResolucionDian}
+            onChange={(e) => setFechaResolucionDian(e.target.value)}
+            disabled={!esAdmin}
+            className="input"
+          />
+        </Campo>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <Campo label="Prefijo">
+          <input
+            value={prefijoFactura}
+            onChange={(e) => setPrefijoFactura(e.target.value.toUpperCase())}
+            disabled={!esAdmin}
+            className="input"
+            placeholder="FE"
+          />
+        </Campo>
+        <Campo label="Número desde">
+          <input
+            type="number"
+            min="1"
+            value={facturaDesde}
+            onChange={(e) => setFacturaDesde(e.target.value)}
+            disabled={!esAdmin}
+            className="input"
+          />
+        </Campo>
+        <Campo label="Número hasta">
+          <input
+            type="number"
+            min="1"
+            value={facturaHasta}
+            onChange={(e) => setFacturaHasta(e.target.value)}
+            disabled={!esAdmin}
+            className="input"
+          />
+        </Campo>
+      </div>
+
       <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-4">
         <p className="mb-2 text-xs uppercase tracking-wide text-[#a1a1aa]">Vista previa del encabezado de factura</p>
         <div className="rounded-lg bg-white p-4 text-center text-black">
@@ -281,6 +346,10 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
           {nit && <p className="text-xs">NIT: {nit}</p>}
           <p className="text-xs">Régimen {regimen === 'comun' ? 'Común' : 'Simplificado'}</p>
           <p className="text-xs">IVA: {ivaEfectivo}%</p>
+          {numeroResolucionDian && <p className="text-xs">Res. DIAN No. {numeroResolucionDian}</p>}
+          <p className="text-xs">
+            Prefijo: {prefijoFactura || 'FE'} Desde: {facturaDesde} Hasta: {facturaHasta}
+          </p>
         </div>
       </div>
 

@@ -219,6 +219,30 @@ CREATE TABLE IF NOT EXISTS pedido_item_modificadores (
   precio_extra DECIMAL(12,2) NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS facturas (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  pedido_id UUID NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  numero_factura VARCHAR(20) NOT NULL,
+  numero_consecutivo INTEGER NOT NULL,
+  fecha_emision TIMESTAMPTZ NOT NULL DEFAULT now(),
+  nombre_cliente VARCHAR(255) NOT NULL DEFAULT 'Consumidor Final',
+  nit_cliente VARCHAR(20) NOT NULL DEFAULT '222222222222',
+  email_cliente VARCHAR(255),
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  impuesto_porcentaje DECIMAL(5,2) NOT NULL DEFAULT 0,
+  impuesto_monto DECIMAL(12,2) NOT NULL DEFAULT 0,
+  propina_sugerida DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total_con_propina DECIMAL(12,2) NOT NULL DEFAULT 0,
+  metodo_pago VARCHAR(20),
+  cufe VARCHAR(255),
+  estado VARCHAR(20) NOT NULL DEFAULT 'emitida'
+    CHECK (estado IN ('emitida', 'anulada')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (pedido_id)
+);
+
 CREATE TABLE IF NOT EXISTS ingredientes (
   id UUID PRIMARY KEY,
   restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
@@ -378,6 +402,14 @@ CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido_id ON pedido_items(pedido_id)
 CREATE INDEX IF NOT EXISTS idx_pedido_items_estado ON pedido_items(estado);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_restaurante_id ON pedido_items(restaurante_id);
 
+CREATE INDEX IF NOT EXISTS idx_facturas_restaurante_id ON facturas(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_fecha_emision ON facturas(fecha_emision);
+-- Garantiza a nivel de base de datos que el consecutivo de facturación no se
+-- repita dentro de un mismo restaurante, en línea con la exigencia de la
+-- DIAN de una numeración única y sin huecos.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_facturas_restaurante_consecutivo
+  ON facturas(restaurante_id, numero_consecutivo);
+
 CREATE INDEX IF NOT EXISTS idx_ingredientes_restaurante_id ON ingredientes(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_ingredientes_activo ON ingredientes(activo);
 CREATE INDEX IF NOT EXISTS idx_ingredientes_stock_actual ON ingredientes(stock_actual);
@@ -466,3 +498,11 @@ ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS mensaje_ticket TEXT;
 -- Fuerza el cambio de password en el primer login de un usuario invitado
 -- desde Configuración > Usuarios y roles (nace con password temporal).
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN NOT NULL DEFAULT false;
+
+-- Datos de la resolución de facturación DIAN, usados para numerar y
+-- timbrar la factura electrónica de venta (Resolución 000165 de 2023).
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS numero_resolucion_dian VARCHAR(50);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS fecha_resolucion_dian DATE;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS prefijo_factura VARCHAR(10) NOT NULL DEFAULT 'FE';
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS factura_desde INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS factura_hasta INTEGER NOT NULL DEFAULT 99999;

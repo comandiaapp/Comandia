@@ -17,6 +17,11 @@ const CAMPOS_ACTUALIZABLES_CONFIGURACION = [
   'permite_pedidos_sin_jornada',
   'impresora_configurada',
   'mensaje_ticket',
+  'numero_resolucion_dian',
+  'fecha_resolucion_dian',
+  'prefijo_factura',
+  'factura_desde',
+  'factura_hasta',
 ];
 
 async function crear(db, { id, nombre, email, telefono, direccion, modo_operacion, plan }) {

@@ -15,6 +15,7 @@ import {
 import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
+import VisorFactura from '../components/VisorFactura';
 import { useAuth } from '../context/AuthContext';
 import { getMesa } from '../utils/mesas';
 import { getCategorias } from '../utils/categorias';
@@ -32,6 +33,7 @@ import {
   cobrarPedido,
   cancelarPedido,
 } from '../utils/pedidos';
+import { generarFactura, obtenerPrecuentaHTML } from '../utils/facturas';
 
 const LABEL_ESTADO_PEDIDO = {
   abierto: 'Abierto',
@@ -98,6 +100,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
   const [modalCobro, setModalCobro] = useState(false);
   const [modalPrecuenta, setModalPrecuenta] = useState(false);
   const [agregandoProducto, setAgregandoProducto] = useState(false);
+  const [visorFactura, setVisorFactura] = useState(null); // { titulo, html, alCerrar }
 
   const [descuentoModo, setDescuentoModo] = useState('monto'); // 'monto' | 'porcentaje'
   const [descuentoValor, setDescuentoValor] = useState(0);
@@ -294,16 +297,47 @@ function POS({ mesaId, onCerrar = () => {} }) {
 
   async function handleCobrar(datosPago) {
     try {
-      await cobrarPedido(pedido.id, {
+      const pedidoCobrado = await cobrarPedido(pedido.id, {
         ...datosPago,
         descuento: descuentoMonto,
         impuesto: Number(impuesto || 0),
         propina: Number(propina || 0),
       });
       toast.success('¡Pedido cobrado!');
-      onCerrar();
+      setModalCobro(false);
+
+      // El backend ya intenta generar la factura en background al cobrar;
+      // se llama de nuevo aquí porque generarFactura es idempotente (si ya
+      // existe, la devuelve) y así el cajero la ve de inmediato sin esperar
+      // a que termine esa tarea en segundo plano.
+      try {
+        const { html } = await generarFactura(pedidoCobrado.id);
+        setVisorFactura({
+          titulo: 'Factura',
+          html,
+          textoCerrar: 'Omitir',
+          alCerrar: onCerrar,
+          guardadoAutomaticamente: true,
+        });
+      } catch {
+        toast.error('El pedido se cobró, pero no se pudo generar la factura. Puedes generarla luego desde Pedidos.');
+        onCerrar();
+      }
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo cobrar el pedido');
+    }
+  }
+
+  async function handleImprimirPrecuenta() {
+    try {
+      const html = await obtenerPrecuentaHTML(pedido.id, {
+        descuento: descuentoMonto,
+        impuesto: Number(impuesto || 0),
+        propina: Number(propina || 0),
+      });
+      setVisorFactura({ titulo: 'Pre-cuenta', html, textoCerrar: 'Cerrar', alCerrar: () => {} });
+    } catch {
+      toast.error('No se pudo generar la pre-cuenta');
     }
   }
 
@@ -560,6 +594,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
           propina={Number(propina || 0)}
           total={totalCalculado}
           onAplicarPropinaSugerida={(monto) => setPropina(monto)}
+          onImprimir={handleImprimirPrecuenta}
           onCobrarAhora={() => {
             setModalPrecuenta(false);
             setModalCobro(true);
@@ -572,8 +607,25 @@ function POS({ mesaId, onCerrar = () => {} }) {
         <ModalCobro
           pedido={pedido}
           total={totalCalculado}
+          baseParaPropina={Math.max(0, subtotal - descuentoMonto + Number(impuesto || 0))}
+          propina={Number(propina || 0)}
+          onCambiarPropina={setPropina}
           onCobrar={handleCobrar}
           onCancelar={() => setModalCobro(false)}
+        />
+      )}
+
+      {visorFactura && (
+        <VisorFactura
+          titulo={visorFactura.titulo}
+          html={visorFactura.html}
+          textoCerrar={visorFactura.textoCerrar}
+          guardadoAutomaticamente={visorFactura.guardadoAutomaticamente}
+          onClose={() => {
+            const { alCerrar } = visorFactura;
+            setVisorFactura(null);
+            alCerrar?.();
+          }}
         />
       )}
     </div>
@@ -803,17 +855,11 @@ function ModalPrecuenta({
   propina,
   total,
   onAplicarPropinaSugerida,
+  onImprimir,
   onCobrarAhora,
   onCancelar,
 }) {
   const propinaSugerida = Math.round(subtotal * PORCENTAJE_PROPINA_SUGERIDA);
-
-  function handleImprimir() {
-    // Se deja el placeholder en consola; la impresión real de la precuenta
-    // se implementa junto con la factura.
-    console.log('Imprimir precuenta', pedido);
-    toast.success('Precuenta enviada a la impresora (simulado)');
-  }
 
   return (
     <Modal titulo={`${mesa ? `Mesa ${mesa.numero}` : 'Pedido'} — Precuenta`} onClose={onCancelar}>
@@ -872,7 +918,7 @@ function ModalPrecuenta({
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={handleImprimir}
+            onClick={onImprimir}
             className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2a2a2a]"
           >
             Imprimir precuenta
@@ -905,7 +951,7 @@ function ModalPrecuenta({
   );
 }
 
-function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
+function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina, onCobrar, onCancelar }) {
   const [metodo, setMetodo] = useState('efectivo');
   const [montoRecibido, setMontoRecibido] = useState('');
   const [montosMixto, setMontosMixto] = useState({});
@@ -949,6 +995,39 @@ function ModalCobro({ pedido, total, onCobrar, onCancelar }) {
             </div>
           ))}
         </div>
+
+        <Campo label="¿El cliente deja propina?">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onCambiarPropina(0)}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${
+                Number(propina) === 0 ? 'bg-[#333] text-white' : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+              }`}
+            >
+              Sin propina
+            </button>
+            <button
+              type="button"
+              onClick={() => onCambiarPropina(Math.round(baseParaPropina * 0.1))}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${
+                Number(propina) === Math.round(baseParaPropina * 0.1)
+                  ? 'bg-green-600 text-white'
+                  : 'bg-green-600/10 text-green-400 hover:bg-green-600/20'
+              }`}
+            >
+              Con propina 10%
+            </button>
+          </div>
+          <input
+            type="number"
+            min="0"
+            value={propina}
+            onChange={(e) => onCambiarPropina(e.target.value)}
+            placeholder="Monto de propina personalizado"
+            className="input mt-2"
+          />
+        </Campo>
 
         <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
           <span className="text-base font-semibold text-white">Total a cobrar</span>

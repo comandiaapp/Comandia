@@ -13,5 +13,6 @@ router.use('/', require('./jornadas'));
 router.use('/', require('./contaduria'));
 router.use('/', require('./compras'));
 router.use('/', require('./configuracion'));
+router.use('/', require('./facturas'));
 
 module.exports = router;

@@ -4,6 +4,7 @@ const pedidoModel = require('../models/pedidoModel');
 const inventarioModel = require('../models/inventarioModel');
 const jornadaModel = require('../models/jornadaModel');
 const contaduriaModel = require('../models/contaduriaModel');
+const facturaModel = require('../models/facturaModel');
 const { ok, error } = require('../utils/respuestas');
 
 const TIPOS_VALIDOS = ['mesa', 'barra', 'delivery', 'take_away'];
@@ -259,6 +260,13 @@ async function cobrar(req, res) {
         usuario_id: req.usuario.userId,
       })
       .catch((err) => console.error('Error al registrar la venta en contaduría:', err));
+
+    // La factura electrónica se genera en background: si falla, el cobro ya
+    // quedó registrado y el cajero puede volver a generarla luego desde el
+    // historial de pedidos.
+    facturaModel
+      .crear(pedido.id, req.usuario.restauranteId, {})
+      .catch((err) => console.error('Error al generar la factura automáticamente:', err));
 
     return ok(res, { pedido });
   } catch (err) {

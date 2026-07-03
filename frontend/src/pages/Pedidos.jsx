@@ -4,8 +4,10 @@ import { Search } from 'lucide-react';
 
 import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
+import VisorFactura from '../components/VisorFactura';
 import { formatearPrecio } from '../utils/formato';
 import { getPedidos, getPedido } from '../utils/pedidos';
+import { generarFactura, obtenerFacturaPorPedido } from '../utils/facturas';
 import { formatearHora, fechaHoyBogota } from '../utils/fecha';
 
 const LABEL_ESTADO_PEDIDO = {
@@ -293,6 +295,27 @@ function construirTimeline(pedido) {
 function ModalDetallePedido({ pedidoId, onClose }) {
   const [pedido, setPedido] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [cargandoFactura, setCargandoFactura] = useState(false);
+  const [htmlFactura, setHtmlFactura] = useState(null);
+
+  async function handleVerFactura() {
+    setCargandoFactura(true);
+    try {
+      let resultado;
+      try {
+        resultado = await obtenerFacturaPorPedido(pedidoId);
+      } catch {
+        // El pedido está pagado pero no tiene factura aún (p. ej. la
+        // generación automática al cobrar falló): se genera ahora.
+        resultado = await generarFactura(pedidoId);
+      }
+      setHtmlFactura(resultado.html);
+    } catch {
+      toast.error('No se pudo obtener la factura de este pedido');
+    } finally {
+      setCargandoFactura(false);
+    }
+  }
 
   useEffect(() => {
     let activo = true;
@@ -410,9 +433,22 @@ function ModalDetallePedido({ pedidoId, onClose }) {
                 <span>Cambio</span>
                 <span className="text-white">{formatearPrecio(pedido.cambio)}</span>
               </div>
+
+              <button
+                type="button"
+                onClick={handleVerFactura}
+                disabled={cargandoFactura}
+                className="mt-2 w-full rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cargandoFactura ? 'Cargando factura...' : 'Ver/Imprimir factura'}
+              </button>
             </div>
           )}
         </div>
+      )}
+
+      {htmlFactura && (
+        <VisorFactura titulo="Factura" html={htmlFactura} onClose={() => setHtmlFactura(null)} />
       )}
     </Modal>
   );

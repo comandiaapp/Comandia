@@ -34,6 +34,6 @@ if (env.nodeEnv === 'production') {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(env.port, () => {
+app.listen(env.port, '0.0.0.0', () => {
   console.log(`Comandia backend corriendo en http://localhost:${env.port}`);
 });

@@ -6,6 +6,7 @@ const restauranteModel = require('../models/restauranteModel');
 const sucursalModel = require('../models/sucursalModel');
 const usuarioModel = require('../models/usuarioModel');
 const contaduriaModel = require('../models/contaduriaModel');
+const codigoAccesoModel = require('../models/codigoAccesoModel');
 const { generarToken } = require('../utils/jwt');
 const { ok, error } = require('../utils/respuestas');
 const { validarPasswordFuerte } = require('../utils/validarPassword');
@@ -32,8 +33,22 @@ function calcularDiasRestantes(fechaExpira) {
   return Math.max(0, Math.ceil(diferenciaMs / (24 * 60 * 60 * 1000)));
 }
 
+function mensajeBeneficioCodigo(codigo) {
+  if (codigo.tipo === 'gratuito_vitalicio') {
+    return 'Acceso gratuito de por vida';
+  }
+  if (codigo.tipo === 'trial_extendido') {
+    return `${DIAS_TRIAL + codigo.trial_dias_extra} días de prueba gratis`;
+  }
+  if (codigo.tipo === 'descuento') {
+    return `${codigo.descuento_porcentaje}% de descuento`;
+  }
+  return 'Código válido';
+}
+
 async function registro(req, res) {
-  const { nombre_restaurante, ciudad, telefono_restaurante, nombre_usuario, email_usuario, password } = req.body;
+  const { nombre_restaurante, ciudad, telefono_restaurante, nombre_usuario, email_usuario, password, codigo_acceso } =
+    req.body;
 
   if (!nombre_restaurante || !nombre_usuario || !email_usuario || !password) {
     return error(
@@ -52,13 +67,44 @@ async function registro(req, res) {
     return error(res, errorPassword, 400);
   }
 
+  const codigoNormalizado = codigo_acceso ? codigo_acceso.trim().toUpperCase() : null;
+  let codigoValidado = null;
+
+  if (codigoNormalizado) {
+    const resultado = await codigoAccesoModel.validarCodigo(codigoNormalizado);
+    if (!resultado.valido) {
+      return error(res, resultado.mensaje, 400);
+    }
+    codigoValidado = resultado.codigo;
+  }
+
   let client;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
 
     const ahora = Date.now();
-    const trialExpira = new Date(ahora + DIAS_TRIAL * 24 * 60 * 60 * 1000);
+    let trialExpira = new Date(ahora + DIAS_TRIAL * 24 * 60 * 60 * 1000);
+    let suscripcionPlan;
+    let descuentoPorcentaje = null;
+
+    if (codigoValidado) {
+      if (codigoValidado.tipo === 'gratuito_vitalicio') {
+        suscripcionPlan = 'gratuito_vitalicio';
+        trialExpira = null;
+      } else if (codigoValidado.tipo === 'trial_extendido') {
+        trialExpira = new Date(ahora + (DIAS_TRIAL + codigoValidado.trial_dias_extra) * 24 * 60 * 60 * 1000);
+      } else if (codigoValidado.tipo === 'descuento') {
+        descuentoPorcentaje = codigoValidado.descuento_porcentaje;
+      }
+
+      const consumido = await codigoAccesoModel.usarCodigo(codigoNormalizado, null, client);
+      if (!consumido) {
+        await client.query('ROLLBACK');
+        return error(res, 'Este código acaba de agotarse, intenta registrarte sin código', 409);
+      }
+    }
+
     const tokenVerificacion = uuidv4();
     const tokenVerificacionExpira = new Date(ahora + HORAS_TOKEN_VERIFICACION * 60 * 60 * 1000);
 
@@ -69,6 +115,9 @@ async function registro(req, res) {
       telefono: telefono_restaurante,
       ciudad,
       trial_expira: trialExpira,
+      suscripcion_plan: suscripcionPlan,
+      codigo_acceso_usado: codigoValidado ? codigoNormalizado : null,
+      descuento_porcentaje: descuentoPorcentaje,
     });
 
     const sucursal = await sucursalModel.crear(client, {
@@ -350,6 +399,31 @@ async function reenviarVerificacion(req, res) {
   }
 }
 
+async function validarCodigoAcceso(req, res) {
+  const { codigo } = req.body;
+
+  if (!codigo) {
+    return error(res, 'Código no proporcionado', 400);
+  }
+
+  try {
+    const resultado = await codigoAccesoModel.validarCodigo(codigo.trim().toUpperCase());
+
+    if (!resultado.valido) {
+      return error(res, resultado.mensaje, 400);
+    }
+
+    return ok(res, {
+      valido: true,
+      tipo: resultado.codigo.tipo,
+      beneficio: mensajeBeneficioCodigo(resultado.codigo),
+    });
+  } catch (err) {
+    console.error('Error en validarCodigoAcceso:', err);
+    return error(res, 'No se pudo validar el código', 500);
+  }
+}
+
 module.exports = {
   registro,
   login,
@@ -358,4 +432,5 @@ module.exports = {
   olvideMiPassword,
   resetPassword,
   reenviarVerificacion,
+  validarCodigoAcceso,
 };

@@ -204,6 +204,25 @@ async function seedDatosEjemplo() {
   console.log('\nDatos de ejemplo insertados correctamente.');
 }
 
+const CODIGO_FUNDADOR = 'CMDA-FUND-2026-FREE';
+
+async function seedCodigoAccesoInicial() {
+  const { rows: existentes } = await pool.query('SELECT id FROM codigos_acceso WHERE codigo = $1', [
+    CODIGO_FUNDADOR,
+  ]);
+
+  if (existentes.length > 0) {
+    return;
+  }
+
+  await pool.query(
+    `INSERT INTO codigos_acceso (id, codigo, tipo, descripcion, usos_maximos, activo)
+     VALUES ($1, $2, 'gratuito_vitalicio', $3, 1, true)`,
+    [uuidv4(), CODIGO_FUNDADOR, 'Socio fundador - acceso gratuito de por vida']
+  );
+  console.log(`  código de acceso "${CODIGO_FUNDADOR}" creado`);
+}
+
 async function initDB() {
   const schemaPath = path.join(__dirname, 'schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -234,6 +253,7 @@ async function initDB() {
 
   console.log('\nBase de datos inicializada correctamente.');
 
+  await seedCodigoAccesoInicial();
   await seedDatosEjemplo();
 }
 

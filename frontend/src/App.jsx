@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import CocinaLayout from './components/CocinaLayout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import VerificarEmail from './pages/VerificarEmail';
@@ -29,7 +30,11 @@ function Inicio() {
     return null;
   }
 
-  return <Navigate to={estaAutenticado ? '/dashboard' : '/login'} replace />;
+  if (estaAutenticado) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Landing />;
 }
 
 function ConLayout({ children }) {

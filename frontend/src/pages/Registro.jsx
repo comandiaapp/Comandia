@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UtensilsCrossed } from 'lucide-react';
+import { UtensilsCrossed, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import Campo from '../components/Campo';
 import CampoPassword from '../components/CampoPassword';
 import { passwordEsValida } from '../components/FortalezaPassword';
+import api from '../utils/api';
 
 const ESTADO_INICIAL = {
   nombre_restaurante: '',
@@ -18,12 +19,45 @@ const ESTADO_INICIAL = {
   confirmar_password: '',
 };
 
+const DEBOUNCE_CODIGO_MS = 500;
+
 function Registro() {
   const [form, setForm] = useState(ESTADO_INICIAL);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [cargando, setCargando] = useState(false);
   const { registro } = useAuth();
   const navigate = useNavigate();
+
+  const [mostrarCodigo, setMostrarCodigo] = useState(false);
+  const [codigoAcceso, setCodigoAcceso] = useState('');
+  const [estadoCodigo, setEstadoCodigo] = useState('idle');
+  const [mensajeCodigo, setMensajeCodigo] = useState('');
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+
+    const codigo = codigoAcceso.trim();
+    if (!codigo) {
+      setEstadoCodigo('idle');
+      setMensajeCodigo('');
+      return undefined;
+    }
+
+    setEstadoCodigo('validando');
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { data } = await api.post('/api/auth/validar-codigo', { codigo });
+        setEstadoCodigo('valido');
+        setMensajeCodigo(data.datos.beneficio);
+      } catch (err) {
+        setEstadoCodigo('invalido');
+        setMensajeCodigo(err.response?.data?.mensaje || 'Código inválido');
+      }
+    }, DEBOUNCE_CODIGO_MS);
+
+    return () => clearTimeout(debounceRef.current);
+  }, [codigoAcceso]);
 
   function actualizar(campo) {
     return (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
@@ -58,6 +92,7 @@ function Registro() {
         nombre_usuario: form.nombre_usuario,
         email_usuario: form.email_usuario,
         password: form.password,
+        codigo_acceso: codigoAcceso.trim() || undefined,
       });
       toast.success('¡Cuenta creada! Verifica tu email para activar todas las funciones.');
       navigate('/dashboard');
@@ -175,7 +210,49 @@ function Registro() {
             </div>
           </div>
 
-          <label className="mt-6 flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+          <div className="mt-6 border-t border-[var(--border)] pt-4">
+            <button
+              type="button"
+              onClick={() => setMostrarCodigo((v) => !v)}
+              className="flex items-center gap-1 text-sm font-medium text-[var(--accent)]"
+            >
+              {mostrarCodigo ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              ¿Tienes un código especial?
+            </button>
+
+            {mostrarCodigo && (
+              <div className="mt-3">
+                <input
+                  type="text"
+                  value={codigoAcceso}
+                  onChange={(e) => setCodigoAcceso(e.target.value.toUpperCase())}
+                  className="input"
+                  placeholder="CMDA-XXXX-XXXX-XXXX"
+                />
+
+                {estadoCodigo === 'validando' && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                    <Loader2 size={13} className="animate-spin" />
+                    Validando código...
+                  </p>
+                )}
+                {estadoCodigo === 'valido' && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[var(--success)]">
+                    <CheckCircle2 size={14} />
+                    Código válido — {mensajeCodigo}
+                  </p>
+                )}
+                {estadoCodigo === 'invalido' && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[var(--error)]">
+                    <XCircle size={14} />
+                    {mensajeCodigo}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <label className="mt-4 flex items-start gap-2 text-sm text-[var(--text-secondary)]">
             <input
               type="checkbox"
               checked={aceptaTerminos}

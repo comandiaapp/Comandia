@@ -528,3 +528,34 @@ ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_suscripcion_plan_check
 
 CREATE INDEX IF NOT EXISTS idx_usuarios_token_verificacion ON usuarios(token_verificacion);
 CREATE INDEX IF NOT EXISTS idx_usuarios_token_reset_password ON usuarios(token_reset_password);
+
+-- Códigos de acceso especial: descuentos, acceso gratuito vitalicio o trial
+-- extendido, canjeables al registrarse (socios fundadores, alianzas, etc).
+CREATE TABLE IF NOT EXISTS codigos_acceso (
+  id UUID PRIMARY KEY,
+  codigo VARCHAR(20) UNIQUE NOT NULL,
+  tipo VARCHAR(20) NOT NULL DEFAULT 'descuento'
+    CHECK (tipo IN ('gratuito_vitalicio', 'descuento', 'trial_extendido')),
+  descuento_porcentaje INTEGER
+    CHECK (descuento_porcentaje IS NULL OR (descuento_porcentaje >= 0 AND descuento_porcentaje <= 100)),
+  trial_dias_extra INTEGER NOT NULL DEFAULT 0,
+  descripcion TEXT,
+  usos_maximos INTEGER NOT NULL DEFAULT 1,
+  usos_actuales INTEGER NOT NULL DEFAULT 0,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  expira_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_codigos_acceso_codigo ON codigos_acceso(codigo);
+
+-- El plan 'gratuito_vitalicio' (código de acceso fundador) se agrega al
+-- check existente de suscripcion_plan.
+ALTER TABLE restaurantes DROP CONSTRAINT IF EXISTS restaurantes_suscripcion_plan_check;
+ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_suscripcion_plan_check
+  CHECK (suscripcion_plan IN ('trial', 'basico', 'profesional', 'empresarial', 'gratuito_vitalicio'));
+
+-- Código de acceso canjeado en el registro y descuento pendiente (tipo
+-- 'descuento') a aplicar cuando exista pasarela de pago.
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS codigo_acceso_usado VARCHAR(20);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS descuento_porcentaje INTEGER;

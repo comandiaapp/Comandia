@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -17,6 +18,18 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api', routes);
+
+// Servir frontend compilado en producción
+if (env.nodeEnv === 'production') {
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendPath));
+
+  // Todas las rutas no-API sirven index.html (React Router)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
 
 app.use(notFound);
 app.use(errorHandler);

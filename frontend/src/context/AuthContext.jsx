@@ -43,6 +43,27 @@ export function AuthProvider({ children }) {
     return data.datos;
   }
 
+  async function registro(datos) {
+    const { data } = await api.post('/api/auth/registro', datos);
+    localStorage.setItem('token', data.datos.token);
+    setToken(data.datos.token);
+    setUsuario(data.datos.usuario);
+    setRestaurante(data.datos.restaurante);
+    return data.datos;
+  }
+
+  async function reenviarVerificacion() {
+    const { data } = await api.post('/api/auth/reenviar-verificacion');
+    return data.datos;
+  }
+
+  async function refrescarUsuario() {
+    const { data } = await api.get('/api/auth/me');
+    setUsuario(data.datos.usuario);
+    setRestaurante(data.datos.restaurante);
+    return data.datos;
+  }
+
   function logout() {
     localStorage.removeItem('token');
     setToken(null);
@@ -53,7 +74,20 @@ export function AuthProvider({ children }) {
   const estaAutenticado = Boolean(token && usuario);
 
   return (
-    <AuthContext.Provider value={{ usuario, restaurante, token, cargando, login, logout, estaAutenticado }}>
+    <AuthContext.Provider
+      value={{
+        usuario,
+        restaurante,
+        token,
+        cargando,
+        login,
+        registro,
+        reenviarVerificacion,
+        refrescarUsuario,
+        logout,
+        estaAutenticado,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

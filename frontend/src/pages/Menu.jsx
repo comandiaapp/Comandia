@@ -140,14 +140,16 @@ function Menu() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Menú</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Menú</h1>
 
-      <div className="mt-6 flex gap-2 border-b border-[#2a2a2a]">
+      <div className="mt-6 flex gap-2 border-b border-[var(--border)]">
         <button
           type="button"
           onClick={() => setTab('categorias')}
           className={`px-4 py-2 text-sm font-medium ${
-            tab === 'categorias' ? 'border-b-2 border-[#f97316] text-[#f97316]' : 'text-[#a1a1aa] hover:text-white'
+            tab === 'categorias'
+              ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
           Categorías
@@ -156,7 +158,9 @@ function Menu() {
           type="button"
           onClick={() => setTab('productos')}
           className={`px-4 py-2 text-sm font-medium ${
-            tab === 'productos' ? 'border-b-2 border-[#f97316] text-[#f97316]' : 'text-[#a1a1aa] hover:text-white'
+            tab === 'productos'
+              ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
         >
           Productos
@@ -169,7 +173,7 @@ function Menu() {
             <button
               type="button"
               onClick={() => setModalCategoria('nueva')}
-              className="flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+              className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
             >
               <Plus size={16} />
               Nueva categoría
@@ -179,9 +183,9 @@ function Menu() {
           {cargandoCategorias ? (
             <Spinner />
           ) : (
-            <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+            <div className="overflow-hidden rounded-xl border border-[var(--border)]">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+                <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                   <tr>
                     <th className="px-4 py-3">Nombre</th>
                     <th className="px-4 py-3">Color</th>
@@ -192,19 +196,21 @@ function Menu() {
                 </thead>
                 <tbody>
                   {categorias.map((categoria) => (
-                    <tr key={categoria.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                      <td className="px-4 py-3 text-white">{categoria.nombre}</td>
+                    <tr key={categoria.id} className="border-t border-[var(--border)] bg-[var(--bg-card)]">
+                      <td className="px-4 py-3 text-[var(--text-primary)]">{categoria.nombre}</td>
                       <td className="px-4 py-3">
                         <span
-                          className="inline-block h-4 w-4 rounded-full border border-[#333]"
+                          className="inline-block h-4 w-4 rounded-full border border-[var(--border)]"
                           style={{ backgroundColor: categoria.color || '#333' }}
                         />
                       </td>
-                      <td className="px-4 py-3 text-[#a1a1aa]">{categoria.orden}</td>
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">{categoria.orden}</td>
                       <td className="px-4 py-3">
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            categoria.activa ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                            categoria.activa
+                              ? 'bg-[var(--success)]/10 text-[var(--success)]'
+                              : 'bg-[var(--error)]/10 text-[var(--error)]'
                           }`}
                         >
                           {categoria.activa ? 'Activa' : 'Inactiva'}
@@ -215,7 +221,7 @@ function Menu() {
                           <button
                             type="button"
                             onClick={() => setModalCategoria(categoria)}
-                            className="rounded-lg p-2 text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white"
+                            className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                             title="Editar"
                           >
                             <Pencil size={16} />
@@ -223,7 +229,7 @@ function Menu() {
                           <button
                             type="button"
                             onClick={() => handleToggleCategoria(categoria)}
-                            className="rounded-lg p-2 text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white"
+                            className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                             title={categoria.activa ? 'Desactivar' : 'Activar'}
                           >
                             {categoria.activa ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -231,7 +237,7 @@ function Menu() {
                           <button
                             type="button"
                             onClick={() => handleEliminarCategoria(categoria)}
-                            className="rounded-lg p-2 text-[#a1a1aa] hover:bg-red-500/10 hover:text-red-400"
+                            className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--error)]/10 hover:text-[var(--error)]"
                             title="Eliminar"
                           >
                             <Trash2 size={16} />
@@ -242,7 +248,7 @@ function Menu() {
                   ))}
                   {categorias.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-[#a1a1aa]">
+                      <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                         No hay categorías todavía.
                       </td>
                     </tr>
@@ -258,7 +264,7 @@ function Menu() {
             <select
               value={filtroCategoria}
               onChange={(e) => setFiltroCategoria(e.target.value)}
-              className="rounded-lg border border-[#333] bg-[#1a1a1a] px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]"
+              className="rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             >
               <option value="">Todas las categorías</option>
               {categorias.map((categoria) => (
@@ -271,7 +277,7 @@ function Menu() {
             <button
               type="button"
               onClick={() => setModalProducto('nuevo')}
-              className="flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+              className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
             >
               <Plus size={16} />
               Nuevo producto
@@ -285,22 +291,27 @@ function Menu() {
               {productos.map((producto) => {
                 const categoria = categorias.find((c) => c.id === producto.categoria_id);
                 return (
-                  <div key={producto.id} className="overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#141414]">
-                    <div className="flex h-32 items-center justify-center bg-[#1a1a1a] text-[#333]">
+                  <div
+                    key={producto.id}
+                    className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)]"
+                  >
+                    <div className="flex h-32 items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                       <span className="text-xs">Sin imagen</span>
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-white">{producto.nombre}</h3>
-                        <span className="whitespace-nowrap font-bold text-[#f97316]">
+                        <h3 className="font-semibold text-[var(--text-primary)]">{producto.nombre}</h3>
+                        <span className="whitespace-nowrap font-bold text-[var(--accent)]">
                           {formatearPrecio(producto.precio)}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-[#a1a1aa]">{categoria?.nombre || 'Sin categoría'}</p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{categoria?.nombre || 'Sin categoría'}</p>
                       <div className="mt-3 flex items-center justify-between">
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            producto.disponible ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                            producto.disponible
+                              ? 'bg-[var(--success)]/10 text-[var(--success)]'
+                              : 'bg-[var(--error)]/10 text-[var(--error)]'
                           }`}
                         >
                           {producto.disponible ? 'Disponible' : 'No disponible'}
@@ -309,7 +320,7 @@ function Menu() {
                           <button
                             type="button"
                             onClick={() => setModalProducto(producto)}
-                            className="rounded-lg p-2 text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white"
+                            className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                             title="Editar"
                           >
                             <Pencil size={16} />
@@ -317,7 +328,7 @@ function Menu() {
                           <button
                             type="button"
                             onClick={() => handleEliminarProducto(producto)}
-                            className="rounded-lg p-2 text-[#a1a1aa] hover:bg-red-500/10 hover:text-red-400"
+                            className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--error)]/10 hover:text-[var(--error)]"
                             title="Eliminar"
                           >
                             <Trash2 size={16} />
@@ -329,7 +340,7 @@ function Menu() {
                 );
               })}
               {productos.length === 0 && (
-                <p className="col-span-full py-8 text-center text-[#a1a1aa]">No hay productos todavía.</p>
+                <p className="col-span-full py-8 text-center text-[var(--text-secondary)]">No hay productos todavía.</p>
               )}
             </div>
           )}
@@ -400,7 +411,7 @@ function FormularioCategoria({ categoria, onGuardar, onCancelar }) {
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            className="h-10 w-16 cursor-pointer rounded-lg border border-[#333] bg-[#0f0f0f]"
+            className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)]"
           />
         </Campo>
         <Campo label="Orden">

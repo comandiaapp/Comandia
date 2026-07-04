@@ -8,23 +8,48 @@ const usuarioModel = require('../models/usuarioModel');
 const contaduriaModel = require('../models/contaduriaModel');
 const { generarToken } = require('../utils/jwt');
 const { ok, error } = require('../utils/respuestas');
+const { validarPasswordFuerte } = require('../utils/validarPassword');
+const { enviarVerificacionEmail, enviarResetPassword, enviarBienvenida } = require('../utils/email');
 
 const SALT_ROUNDS = 12;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const DIAS_TRIAL = 14;
+const HORAS_TOKEN_VERIFICACION = 24;
+const HORAS_TOKEN_RESET = 1;
+const MINUTOS_RATE_LIMIT_REENVIO = 2;
 
 function sinPassword(usuario) {
-  const { password_hash, ...resto } = usuario;
+  const { password_hash, token_verificacion, token_reset_password, ...resto } = usuario;
   return resto;
 }
 
-async function registro(req, res) {
-  const { nombre_restaurante, email_restaurante, nombre_usuario, email_usuario, password } = req.body;
+function calcularDiasRestantes(fechaExpira) {
+  if (!fechaExpira) {
+    return null;
+  }
+  const diferenciaMs = new Date(fechaExpira).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diferenciaMs / (24 * 60 * 60 * 1000)));
+}
 
-  if (!nombre_restaurante || !email_restaurante || !nombre_usuario || !email_usuario || !password) {
+async function registro(req, res) {
+  const { nombre_restaurante, ciudad, telefono_restaurante, nombre_usuario, email_usuario, password } = req.body;
+
+  if (!nombre_restaurante || !nombre_usuario || !email_usuario || !password) {
     return error(
       res,
-      'Faltan campos obligatorios: nombre_restaurante, email_restaurante, nombre_usuario, email_usuario, password',
+      'Faltan campos obligatorios: nombre_restaurante, nombre_usuario, email_usuario, password',
       400
     );
+  }
+
+  if (!EMAIL_REGEX.test(email_usuario)) {
+    return error(res, 'El email no tiene un formato válido', 400);
+  }
+
+  const errorPassword = validarPasswordFuerte(password);
+  if (errorPassword) {
+    return error(res, errorPassword, 400);
   }
 
   let client;
@@ -32,16 +57,25 @@ async function registro(req, res) {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    const ahora = Date.now();
+    const trialExpira = new Date(ahora + DIAS_TRIAL * 24 * 60 * 60 * 1000);
+    const tokenVerificacion = uuidv4();
+    const tokenVerificacionExpira = new Date(ahora + HORAS_TOKEN_VERIFICACION * 60 * 60 * 1000);
+
     const restaurante = await restauranteModel.crear(client, {
       id: uuidv4(),
       nombre: nombre_restaurante,
-      email: email_restaurante,
+      email: email_usuario,
+      telefono: telefono_restaurante,
+      ciudad,
+      trial_expira: trialExpira,
     });
 
     const sucursal = await sucursalModel.crear(client, {
       id: uuidv4(),
       restaurante_id: restaurante.id,
       nombre: 'Principal',
+      telefono: telefono_restaurante,
     });
 
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -54,6 +88,9 @@ async function registro(req, res) {
       email: email_usuario,
       password_hash,
       rol: 'admin',
+      token_verificacion: tokenVerificacion,
+      token_verificacion_expira: tokenVerificacionExpira,
+      trial_expira: trialExpira,
     });
 
     await contaduriaModel.crearCategoriasDefault(client, restaurante.id);
@@ -65,6 +102,15 @@ async function registro(req, res) {
       restauranteId: restaurante.id,
       sucursalId: sucursal.id,
       rol: usuario.rol,
+    });
+
+    // El envío de correos no debe tumbar el registro si Resend falla o no
+    // está configurado (p. ej. en desarrollo sin RESEND_API_KEY).
+    enviarVerificacionEmail(usuario.email, usuario.nombre, tokenVerificacion).catch((err) => {
+      console.error('Error enviando email de verificación:', err.message || err);
+    });
+    enviarBienvenida(usuario.email, usuario.nombre, restaurante.nombre, trialExpira).catch((err) => {
+      console.error('Error enviando email de bienvenida:', err.message || err);
     });
 
     return ok(
@@ -117,15 +163,31 @@ async function login(req, res) {
       );
     }
 
-    const usuario = usuarios[0];
+    let usuario = usuarios[0];
 
     if (!usuario.activo) {
       return error(res, 'Usuario inactivo', 403);
     }
 
+    if (usuario.bloqueado_hasta && new Date(usuario.bloqueado_hasta) > new Date()) {
+      const minutosRestantes = Math.ceil((new Date(usuario.bloqueado_hasta) - new Date()) / 60000);
+      return error(res, `Cuenta bloqueada temporalmente. Intenta en ${minutosRestantes} minuto(s)`, 429);
+    }
+
     const passwordValida = await bcrypt.compare(password, usuario.password_hash);
     if (!passwordValida) {
+      usuario = await usuarioModel.registrarIntentoFallido(usuario.id);
+
+      if (usuario.bloqueado_hasta && new Date(usuario.bloqueado_hasta) > new Date()) {
+        const minutosRestantes = Math.ceil((new Date(usuario.bloqueado_hasta) - new Date()) / 60000);
+        return error(res, `Cuenta bloqueada temporalmente. Intenta en ${minutosRestantes} minuto(s)`, 429);
+      }
+
       return error(res, 'Credenciales inválidas', 401);
+    }
+
+    if (usuario.intentos_login > 0) {
+      usuario = await usuarioModel.resetearIntentosLogin(usuario.id);
     }
 
     const restaurante = await restauranteModel.buscarPorId(usuario.restaurante_id);
@@ -144,6 +206,10 @@ async function login(req, res) {
       token,
       usuario: sinPassword(usuario),
       restaurante,
+      email_verificado: usuario.email_verificado,
+      trial_expira: restaurante.trial_expira,
+      dias_trial_restantes: calcularDiasRestantes(restaurante.trial_expira),
+      suscripcion_activa: restaurante.suscripcion_activa,
     });
   } catch (err) {
     console.error('Error en login:', err);
@@ -170,4 +236,126 @@ async function me(req, res) {
   }
 }
 
-module.exports = { registro, login, me };
+async function verificarEmail(req, res) {
+  const { token } = req.query;
+
+  if (!token) {
+    return error(res, 'Token no proporcionado', 400);
+  }
+
+  try {
+    const usuario = await usuarioModel.buscarPorTokenVerificacion(token);
+    if (!usuario) {
+      return error(res, 'Link inválido o expirado', 400);
+    }
+
+    await usuarioModel.marcarEmailVerificado(usuario.id);
+
+    return ok(res, { mensaje: 'Email verificado' });
+  } catch (err) {
+    console.error('Error en verificarEmail:', err);
+    return error(res, 'No se pudo verificar el email', 500);
+  }
+}
+
+async function olvideMiPassword(req, res) {
+  const { email } = req.body;
+
+  if (!email) {
+    return error(res, 'Email es obligatorio', 400);
+  }
+
+  try {
+    const usuarios = await usuarioModel.buscarPorEmail(email);
+
+    if (usuarios.length > 0) {
+      const usuario = usuarios[0];
+      const token = uuidv4();
+      const expira = new Date(Date.now() + HORAS_TOKEN_RESET * 60 * 60 * 1000);
+
+      await usuarioModel.actualizarTokenReset(usuario.id, token, expira);
+
+      enviarResetPassword(usuario.email, usuario.nombre, token).catch((err) => {
+        console.error('Error enviando email de reset:', err.message || err);
+      });
+    }
+
+    // Nunca se revela si el email existe o no en el sistema.
+    return ok(res, { mensaje: 'Si el email existe, recibirás instrucciones' });
+  } catch (err) {
+    console.error('Error en olvideMiPassword:', err);
+    return error(res, 'No se pudo procesar la solicitud', 500);
+  }
+}
+
+async function resetPassword(req, res) {
+  const { token, nueva_password } = req.body;
+
+  if (!token || !nueva_password) {
+    return error(res, 'Token y nueva_password son obligatorios', 400);
+  }
+
+  const errorPassword = validarPasswordFuerte(nueva_password);
+  if (errorPassword) {
+    return error(res, errorPassword, 400);
+  }
+
+  try {
+    const usuario = await usuarioModel.buscarPorTokenReset(token);
+    if (!usuario) {
+      return error(res, 'Link inválido o expirado', 400);
+    }
+
+    const password_hash = await bcrypt.hash(nueva_password, SALT_ROUNDS);
+    await usuarioModel.actualizarPassword(usuario.id, password_hash);
+
+    return ok(res, { mensaje: 'Contraseña actualizada' });
+  } catch (err) {
+    console.error('Error en resetPassword:', err);
+    return error(res, 'No se pudo restablecer la contraseña', 500);
+  }
+}
+
+async function reenviarVerificacion(req, res) {
+  try {
+    const usuario = await usuarioModel.buscarPorId(req.usuario.userId);
+    if (!usuario) {
+      return error(res, 'Usuario no encontrado', 404);
+    }
+
+    if (usuario.email_verificado) {
+      return ok(res, { mensaje: 'El email ya está verificado' });
+    }
+
+    if (usuario.token_verificacion_expira) {
+      const enviadoEn = new Date(usuario.token_verificacion_expira).getTime() - HORAS_TOKEN_VERIFICACION * 60 * 60 * 1000;
+      const minutosDesdeEnvio = (Date.now() - enviadoEn) / 60000;
+
+      if (minutosDesdeEnvio < MINUTOS_RATE_LIMIT_REENVIO) {
+        const restante = Math.ceil(MINUTOS_RATE_LIMIT_REENVIO - minutosDesdeEnvio);
+        return error(res, `Espera ${restante} minuto(s) antes de solicitar otro email de verificación`, 429);
+      }
+    }
+
+    const token = uuidv4();
+    const expira = new Date(Date.now() + HORAS_TOKEN_VERIFICACION * 60 * 60 * 1000);
+    await usuarioModel.actualizarTokenVerificacion(usuario.id, token, expira);
+
+    await enviarVerificacionEmail(usuario.email, usuario.nombre, token);
+
+    return ok(res, { mensaje: 'Email de verificación reenviado' });
+  } catch (err) {
+    console.error('Error en reenviarVerificacion:', err);
+    return error(res, 'No se pudo reenviar el email de verificación', 500);
+  }
+}
+
+module.exports = {
+  registro,
+  login,
+  me,
+  verificarEmail,
+  olvideMiPassword,
+  resetPassword,
+  reenviarVerificacion,
+};

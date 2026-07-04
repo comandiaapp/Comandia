@@ -1,7 +1,7 @@
 function Campo({ label, children }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">{label}</span>
       {children}
     </label>
   );

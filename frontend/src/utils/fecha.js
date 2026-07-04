@@ -16,6 +16,12 @@ export const formatearHora = (fecha) => {
   });
 };
 
+export const diasRestantes = (fecha) => {
+  if (!fecha) return null;
+  const diferenciaMs = new Date(fecha).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diferenciaMs / (24 * 60 * 60 * 1000)));
+};
+
 export const fechaHoyBogota = () => {
   return new Date()
     .toLocaleDateString('es-CO', {

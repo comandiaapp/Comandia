@@ -22,11 +22,17 @@ const LABEL_ESTADO_PEDIDO = {
 const COLOR_ESTADO_PEDIDO = {
   abierto: '#6b7280',
   enviado_cocina: '#3b82f6',
-  listo: '#22c55e',
-  cuenta_pedida: '#eab308',
-  pagado: '#22c55e',
-  cancelado: '#ef4444',
+  listo: 'var(--success)',
+  cuenta_pedida: 'var(--warning)',
+  pagado: 'var(--success)',
+  cancelado: 'var(--error)',
 };
+
+// Los colores de estado pueden ser var(--...) o hex directo; color-mix
+// permite obtener un fondo translúcido a partir de cualquiera de los dos.
+function fondoConAlpha(color) {
+  return `color-mix(in srgb, ${color} 10%, transparent)`;
+}
 
 const LABEL_METODO_PAGO = {
   efectivo: 'Efectivo',
@@ -121,11 +127,11 @@ function Pedidos() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Historial de pedidos</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Historial de pedidos</h1>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Fecha</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Fecha</span>
           <input
             type="date"
             value={fecha}
@@ -136,7 +142,7 @@ function Pedidos() {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Estado</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Estado</span>
           <select value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)} className="input w-auto">
             {FILTROS_ESTADO.map((f) => (
               <option key={f.value} value={f.value}>
@@ -147,7 +153,7 @@ function Pedidos() {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Tipo</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Tipo</span>
           <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)} className="input w-auto">
             {FILTROS_TIPO.map((f) => (
               <option key={f.value} value={f.value}>
@@ -158,9 +164,9 @@ function Pedidos() {
         </label>
 
         <label className="block flex-1 min-w-[200px]">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Buscar</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Buscar</span>
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -176,23 +182,23 @@ function Pedidos() {
       ) : (
         <>
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-              <p className="text-sm text-[#a1a1aa]">Total del día</p>
-              <p className="mt-2 text-2xl font-bold text-white">{formatearPrecio(totalDia)}</p>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+              <p className="text-sm text-[var(--text-secondary)]">Total del día</p>
+              <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">{formatearPrecio(totalDia)}</p>
             </div>
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-              <p className="text-sm text-[#a1a1aa]">Pedidos pagados</p>
-              <p className="mt-2 text-2xl font-bold text-white">{pedidosPagados.length}</p>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+              <p className="text-sm text-[var(--text-secondary)]">Pedidos pagados</p>
+              <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">{pedidosPagados.length}</p>
             </div>
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-              <p className="text-sm text-[#a1a1aa]">Ticket promedio</p>
-              <p className="mt-2 text-2xl font-bold text-white">{formatearPrecio(ticketPromedio)}</p>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+              <p className="text-sm text-[var(--text-secondary)]">Ticket promedio</p>
+              <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">{formatearPrecio(ticketPromedio)}</p>
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-[#2a2a2a]">
+          <div className="mt-6 overflow-hidden rounded-xl border border-[var(--border)]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+              <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Mesa / Tipo</th>
@@ -207,27 +213,27 @@ function Pedidos() {
               </thead>
               <tbody>
                 {pedidosFiltrados.map((p) => (
-                  <tr key={p.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                    <td className="px-4 py-3 font-semibold text-white">
+                  <tr key={p.id} className="border-t border-[var(--border)] bg-[var(--bg-card)]">
+                    <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
                       #{String(p.numero_jornada).padStart(2, '0')}
-                      <span className="ml-1 font-normal text-[#a1a1aa]">(Global: #{p.numero_global})</span>
+                      <span className="ml-1 font-normal text-[var(--text-secondary)]">(Global: #{p.numero_global})</span>
                     </td>
-                    <td className="px-4 py-3 text-white">{p.mesa_numero || LABEL_TIPO[p.tipo] || p.tipo}</td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">{formatearHora(p.created_at)}</td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">
+                    <td className="px-4 py-3 text-[var(--text-primary)]">{p.mesa_numero || LABEL_TIPO[p.tipo] || p.tipo}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{formatearHora(p.created_at)}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
                       {p.estado === 'pagado' ? formatearHora(p.pagado_at || p.updated_at) : '-'}
                     </td>
-                    <td className="max-w-[280px] truncate px-4 py-3 text-[#a1a1aa]" title={p.items_resumen}>
+                    <td className="max-w-[280px] truncate px-4 py-3 text-[var(--text-secondary)]" title={p.items_resumen}>
                       {p.items_resumen || '-'}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-white">{formatearPrecio(p.total)}</td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">{LABEL_METODO_PAGO[p.pagado_con] || '-'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-[var(--text-primary)]">{formatearPrecio(p.total)}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{LABEL_METODO_PAGO[p.pagado_con] || '-'}</td>
                     <td className="px-4 py-3">
                       <span
                         className="rounded-full px-2 py-1 text-xs font-medium"
                         style={{
                           color: COLOR_ESTADO_PEDIDO[p.estado],
-                          backgroundColor: `${COLOR_ESTADO_PEDIDO[p.estado]}1a`,
+                          backgroundColor: fondoConAlpha(COLOR_ESTADO_PEDIDO[p.estado]),
                         }}
                       >
                         {LABEL_ESTADO_PEDIDO[p.estado] || p.estado}
@@ -237,7 +243,7 @@ function Pedidos() {
                       <button
                         type="button"
                         onClick={() => setPedidoDetalleId(p.id)}
-                        className="rounded-lg border border-[#333] px-3 py-1.5 text-xs font-medium text-[#a1a1aa] hover:text-white"
+                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       >
                         Ver detalle
                       </button>
@@ -246,7 +252,7 @@ function Pedidos() {
                 ))}
                 {pedidosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-[#a1a1aa]">
+                    <td colSpan={9} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                       No hay pedidos que coincidan con los filtros.
                     </td>
                   </tr>
@@ -347,12 +353,12 @@ function ModalDetallePedido({ pedidoId, onClose }) {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#a1a1aa]">{pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : LABEL_TIPO[pedido.tipo]}</span>
+            <span className="text-[var(--text-secondary)]">{pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : LABEL_TIPO[pedido.tipo]}</span>
             <span
               className="rounded-full px-2 py-1 text-xs font-medium"
               style={{
                 color: COLOR_ESTADO_PEDIDO[pedido.estado],
-                backgroundColor: `${COLOR_ESTADO_PEDIDO[pedido.estado]}1a`,
+                backgroundColor: fondoConAlpha(COLOR_ESTADO_PEDIDO[pedido.estado]),
               }}
             >
               {LABEL_ESTADO_PEDIDO[pedido.estado] || pedido.estado}
@@ -362,83 +368,87 @@ function ModalDetallePedido({ pedidoId, onClose }) {
           <div className="space-y-2">
             {construirTimeline(pedido).map((paso) => (
               <div key={paso.label} className="flex items-center justify-between text-sm">
-                <span className={`flex items-center gap-2 ${paso.alcanzado ? 'text-white' : 'text-[#555]'}`}>
+                <span
+                  className={`flex items-center gap-2 ${
+                    paso.alcanzado ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] opacity-50'
+                  }`}
+                >
                   <span
                     className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: paso.alcanzado ? '#22c55e' : '#333' }}
+                    style={{ backgroundColor: paso.alcanzado ? 'var(--success)' : 'var(--border)' }}
                   />
                   {paso.label}
                 </span>
-                <span className="text-xs text-[#a1a1aa]">
+                <span className="text-xs text-[var(--text-secondary)]">
                   {paso.timestamp ? formatearFechaHora(paso.timestamp) : ''}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-[#2a2a2a] p-3">
+          <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-[var(--border)] p-3">
             {(pedido.items || []).map((item) => (
-              <div key={item.id} className="border-b border-[#2a2a2a] pb-2 last:border-0 last:pb-0">
+              <div key={item.id} className="border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
                 <div className="flex justify-between text-sm">
-                  <span className="text-white">
+                  <span className="text-[var(--text-primary)]">
                     {item.cantidad}× {item.nombre_producto}
                   </span>
-                  <span className="font-medium text-white">{formatearPrecio(item.subtotal)}</span>
+                  <span className="font-medium text-[var(--text-primary)]">{formatearPrecio(item.subtotal)}</span>
                 </div>
                 {item.modificadores?.length > 0 && (
-                  <p className="mt-0.5 text-xs text-[#a1a1aa]">
+                  <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                     {item.modificadores.map((m) => m.nombre_opcion).join(', ')}
                   </p>
                 )}
-                {item.notas && <p className="mt-0.5 text-xs italic text-[#a1a1aa]">"{item.notas}"</p>}
+                {item.notas && <p className="mt-0.5 text-xs italic text-[var(--text-secondary)]">"{item.notas}"</p>}
               </div>
             ))}
-            {(pedido.items || []).length === 0 && <p className="text-sm text-[#a1a1aa]">Sin productos.</p>}
+            {(pedido.items || []).length === 0 && <p className="text-sm text-[var(--text-secondary)]">Sin productos.</p>}
           </div>
 
-          <div className="space-y-1 border-t border-[#2a2a2a] pt-3 text-sm">
-            <div className="flex justify-between text-[#a1a1aa]">
+          <div className="space-y-1 border-t border-[var(--border)] pt-3 text-sm">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>Subtotal</span>
               <span>{formatearPrecio(pedido.subtotal)}</span>
             </div>
-            <div className="flex justify-between text-[#a1a1aa]">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>Descuento</span>
               <span>-{formatearPrecio(pedido.descuento)}</span>
             </div>
-            <div className="flex justify-between text-[#a1a1aa]">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>Impuesto</span>
               <span>{formatearPrecio(pedido.impuesto)}</span>
             </div>
-            <div className="flex justify-between text-[#a1a1aa]">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>Propina</span>
               <span>{formatearPrecio(pedido.propina)}</span>
             </div>
-            <div className="flex justify-between border-t border-[#2a2a2a] pt-2 text-base font-semibold text-white">
+            <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-semibold text-[var(--text-primary)]">
               <span>Total</span>
               <span>{formatearPrecio(pedido.total)}</span>
             </div>
           </div>
 
           {pedido.estado === 'pagado' && (
-            <div className="space-y-1 border-t border-[#2a2a2a] pt-3 text-sm">
-              <div className="flex justify-between text-[#a1a1aa]">
+            <div className="space-y-1 border-t border-[var(--border)] pt-3 text-sm">
+              <div className="flex justify-between text-[var(--text-secondary)]">
                 <span>Método de pago</span>
-                <span className="text-white">{LABEL_METODO_PAGO[pedido.pagado_con] || '-'}</span>
+                <span className="text-[var(--text-primary)]">{LABEL_METODO_PAGO[pedido.pagado_con] || '-'}</span>
               </div>
-              <div className="flex justify-between text-[#a1a1aa]">
+              <div className="flex justify-between text-[var(--text-secondary)]">
                 <span>Monto recibido</span>
-                <span className="text-white">{formatearPrecio(pedido.monto_recibido)}</span>
+                <span className="text-[var(--text-primary)]">{formatearPrecio(pedido.monto_recibido)}</span>
               </div>
-              <div className="flex justify-between text-[#a1a1aa]">
+              <div className="flex justify-between text-[var(--text-secondary)]">
                 <span>Cambio</span>
-                <span className="text-white">{formatearPrecio(pedido.cambio)}</span>
+                <span className="text-[var(--text-primary)]">{formatearPrecio(pedido.cambio)}</span>
               </div>
 
               <button
                 type="button"
                 onClick={handleVerFactura}
                 disabled={cargandoFactura}
-                className="mt-2 w-full rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 w-full rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {cargandoFactura ? 'Cargando factura...' : 'Ver/Imprimir factura'}
               </button>

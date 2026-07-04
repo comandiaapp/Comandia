@@ -10,9 +10,9 @@ const INTERVALO_POLLING = 15000;
 const DURACION_FADE_OUT = 400;
 
 function colorTiempo(minutos) {
-  if (minutos < 10) return '#22c55e';
-  if (minutos < 20) return '#eab308';
-  return '#ef4444';
+  if (minutos < 10) return 'var(--success)';
+  if (minutos < 20) return 'var(--warning)';
+  return 'var(--error)';
 }
 
 function etiquetaOrigen(pedido) {
@@ -154,18 +154,18 @@ function Cocina() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2a2a2a] bg-[#0a0a0a] px-6 py-4">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-primary)] px-6 py-4">
         <div className="flex items-center gap-3">
-          <UtensilsCrossed className="text-[#f97316]" size={28} />
-          <span className="text-2xl font-bold text-white">Comandia</span>
-          <span className="rounded-full bg-[#f97316]/10 px-3 py-1 text-sm font-bold uppercase tracking-wide text-[#f97316]">
+          <UtensilsCrossed className="text-[var(--accent)]" size={28} />
+          <span className="text-2xl font-bold text-[var(--text-primary)]">Comandia</span>
+          <span className="rounded-full bg-[var(--accent)]/10 px-3 py-1 text-sm font-bold uppercase tracking-wide text-[var(--accent)]">
             Cocina
           </span>
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="font-mono text-xl font-semibold text-white">
+          <span className="font-mono text-xl font-semibold text-[var(--text-primary)]">
             {horaActual.toLocaleTimeString('es-CO', {
               timeZone: 'America/Bogota',
               hour: '2-digit',
@@ -178,14 +178,14 @@ function Cocina() {
             type="button"
             onClick={handleToggleFullscreen}
             title={pantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'}
-            className="rounded-lg border border-[#2a2a2a] p-2 text-[#a1a1aa] hover:text-white"
+            className="rounded-lg border border-[var(--border)] p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             {pantallaCompleta ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
           <button
             type="button"
             onClick={() => navigate('/mesas')}
-            className="flex items-center gap-1 rounded-lg border border-[#2a2a2a] px-3 py-2 text-sm font-medium text-[#a1a1aa] hover:text-white"
+            className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <ArrowLeft size={14} />
             Volver
@@ -199,7 +199,7 @@ function Cocina() {
             <Spinner />
           </div>
         ) : pedidos.length === 0 ? (
-          <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-[#52525b]">
+          <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-[var(--text-secondary)]">
             <UtensilsCrossed size={48} />
             <p className="text-xl font-semibold">No hay pedidos pendientes en cocina</p>
           </div>
@@ -232,17 +232,17 @@ function TarjetaPedidoCocina({ pedido, horaActual, saliendo, onClickItem, onTodo
 
   return (
     <div
-      className={`flex flex-col overflow-hidden rounded-2xl border-4 bg-[#151515] transition-opacity duration-[400ms] ${
+      className={`flex flex-col overflow-hidden rounded-2xl border-4 bg-[var(--bg-card)] transition-opacity duration-[400ms] ${
         saliendo ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
-      style={{ borderColor: todosListos ? '#22c55e' : '#2a2a2a' }}
+      style={{ borderColor: todosListos ? 'var(--success)' : 'var(--border)' }}
     >
-      <div className="flex items-start justify-between gap-3 border-b border-[#2a2a2a] px-5 py-4">
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <div>
-          <p className="text-[32px] font-black leading-none text-white">
+          <p className="text-[32px] font-black leading-none text-[var(--text-primary)]">
             #{String(pedido.numero_jornada ?? pedido.numero_global).padStart(2, '0')}
           </p>
-          <p className="mt-1.5 text-xl font-semibold text-[#d4d4d8]">{etiquetaOrigen(pedido)}</p>
+          <p className="mt-1.5 text-xl font-semibold text-[var(--text-secondary)]">{etiquetaOrigen(pedido)}</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold leading-none" style={{ color }}>
@@ -251,8 +251,8 @@ function TarjetaPedidoCocina({ pedido, horaActual, saliendo, onClickItem, onTodo
           <span
             className="mt-2 inline-block rounded-full px-3 py-1 text-base font-bold uppercase tracking-wide"
             style={{
-              color: todosListos ? '#22c55e' : '#3b82f6',
-              backgroundColor: todosListos ? '#22c55e1a' : '#3b82f61a',
+              color: todosListos ? 'var(--success)' : '#3b82f6',
+              backgroundColor: todosListos ? 'color-mix(in srgb, var(--success) 10%, transparent)' : '#3b82f61a',
             }}
           >
             {todosListos ? 'Listo' : 'En cocina'}
@@ -266,12 +266,12 @@ function TarjetaPedidoCocina({ pedido, horaActual, saliendo, onClickItem, onTodo
         ))}
       </div>
 
-      <div className="border-t border-[#2a2a2a] p-4">
+      <div className="border-t border-[var(--border)] p-4">
         {todosListos ? (
           <button
             type="button"
             onClick={onEntregar}
-            className="w-full rounded-xl bg-[#22c55e] py-4 text-xl font-bold text-white hover:bg-[#16a34a]"
+            className="w-full rounded-xl bg-[var(--success)] py-4 text-xl font-bold text-white hover:opacity-90"
           >
             Entregar
           </button>
@@ -279,7 +279,7 @@ function TarjetaPedidoCocina({ pedido, horaActual, saliendo, onClickItem, onTodo
           <button
             type="button"
             onClick={onTodoListo}
-            className="w-full rounded-xl bg-[#f97316] py-4 text-xl font-bold text-white hover:bg-[#ea6a0d]"
+            className="w-full rounded-xl bg-[var(--accent)] py-4 text-xl font-bold text-white hover:bg-[var(--accent-hover)]"
           >
             Todo listo
           </button>
@@ -297,35 +297,35 @@ function ItemCocina({ item, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-start gap-3 rounded-xl border border-[#2a2a2a] bg-[#1c1c1c] p-3 text-left transition-colors hover:border-[#f97316]/60"
+      className="flex w-full items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-3 text-left transition-colors hover:border-[var(--accent)]/60"
     >
       <span
         className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2"
         style={{
-          borderColor: esListo ? '#22c55e' : enPreparacion ? '#f97316' : '#52525b',
-          backgroundColor: esListo ? '#22c55e' : 'transparent',
+          borderColor: esListo ? 'var(--success)' : enPreparacion ? 'var(--accent)' : 'var(--border)',
+          backgroundColor: esListo ? 'var(--success)' : 'transparent',
         }}
       >
         {esListo && <Check size={18} className="text-black" strokeWidth={3} />}
-        {enPreparacion && <Flame size={18} className="text-[#f97316]" />}
+        {enPreparacion && <Flame size={18} className="text-[var(--accent)]" />}
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span
             className={`text-xl font-bold ${
-              esListo ? 'text-[#22c55e] line-through' : enPreparacion ? 'text-[#f97316]' : 'text-white'
+              esListo ? 'text-[var(--success)] line-through' : enPreparacion ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
             }`}
           >
             {item.nombre_producto}
           </span>
-          <span className="text-xl font-black text-white">x{item.cantidad}</span>
+          <span className="text-xl font-black text-[var(--text-primary)]">x{item.cantidad}</span>
         </div>
         {item.modificadores?.length > 0 && (
-          <p className="mt-1 text-sm text-[#a1a1aa]">{item.modificadores.map((m) => m.nombre_opcion).join(', ')}</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{item.modificadores.map((m) => m.nombre_opcion).join(', ')}</p>
         )}
         {item.notas && (
-          <p className="mt-1.5 rounded-md bg-[#f97316]/10 px-2 py-1 text-sm font-semibold text-[#f97316]">
+          <p className="mt-1.5 rounded-md bg-[var(--accent)]/10 px-2 py-1 text-sm font-semibold text-[var(--accent)]">
             "{item.notas}"
           </p>
         )}

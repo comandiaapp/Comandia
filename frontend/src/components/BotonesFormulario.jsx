@@ -4,14 +4,14 @@ function BotonesFormulario({ onCancelar, guardando, textoGuardar = 'Guardar' }) 
       <button
         type="button"
         onClick={onCancelar}
-        className="rounded-lg border border-[#333] px-4 py-2 text-sm font-medium text-[#a1a1aa] hover:text-white"
+        className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       >
         Cancelar
       </button>
       <button
         type="submit"
         disabled={guardando}
-        className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
+        className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
       >
         {guardando ? 'Guardando...' : textoGuardar}
       </button>

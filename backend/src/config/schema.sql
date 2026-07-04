@@ -506,3 +506,25 @@ ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS fecha_resolucion_dian DATE;
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS prefijo_factura VARCHAR(10) NOT NULL DEFAULT 'FE';
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS factura_desde INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS factura_hasta INTEGER NOT NULL DEFAULT 99999;
+
+-- Registro público, verificación de email, "olvidé mi contraseña" y trial de
+-- 14 días. Todo idempotente para poder correr initDB varias veces.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_verificado BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_verificacion VARCHAR(255);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_verificacion_expira TIMESTAMPTZ;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_reset_password VARCHAR(255);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_reset_expira TIMESTAMPTZ;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trial_expira TIMESTAMPTZ;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plan_activo BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS intentos_login INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_hasta TIMESTAMPTZ;
+
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS trial_expira TIMESTAMPTZ;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS suscripcion_activa BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS suscripcion_plan VARCHAR(20) NOT NULL DEFAULT 'trial';
+ALTER TABLE restaurantes DROP CONSTRAINT IF EXISTS restaurantes_suscripcion_plan_check;
+ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_suscripcion_plan_check
+  CHECK (suscripcion_plan IN ('trial', 'basico', 'profesional', 'empresarial'));
+
+CREATE INDEX IF NOT EXISTS idx_usuarios_token_verificacion ON usuarios(token_verificacion);
+CREATE INDEX IF NOT EXISTS idx_usuarios_token_reset_password ON usuarios(token_reset_password);

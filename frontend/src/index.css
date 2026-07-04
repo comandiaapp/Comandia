@@ -2,13 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #FFFBF5;
+  --bg-secondary: #FFF3E0;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FF6B00;
+  --text-sidebar: #FFFFFF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #5A5A5A;
+  --accent: #F97316;
+  --accent-hover: #EA6C0A;
+  --border: #FFE0C0;
+  --input-bg: #FFFFFF;
+  --input-border: #FFD0A0;
+  --input-bg-focus: #FFF8F0;
+  --shadow: rgba(249, 115, 22, 0.15);
+  --success: #16A34A;
+  --error: #DC2626;
+  --warning: #D97706;
+  --bg-modal: #FFFFFF;
+  --overlay: rgba(0, 0, 0, 0.5);
+  --login-gradient: linear-gradient(to bottom, #FF6B00, #F97316, #FFAD60);
+  --login-text: #FFFFFF;
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.2);
+  --bg-sidebar-active: rgba(255, 255, 255, 0.9);
+  --text-sidebar-active: #F97316;
+  --text-sidebar-muted: rgba(255, 255, 255, 0.7);
+  --border-sidebar: rgba(255, 255, 255, 0.2);
+}
+
+html.dark {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #2a2a2a;
+  --bg-sidebar: #1a1a1a;
+  --text-sidebar: #FFFFFF;
+  --text-primary: #FFFFFF;
+  --text-secondary: #a1a1aa;
+  --accent: #f97316;
+  --accent-hover: #ea6c0a;
+  --border: #333333;
+  --input-bg: #2a2a2a;
+  --input-border: #444444;
+  --input-bg-focus: #2a2a2a;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #eab308;
+  --bg-modal: #1a1a1a;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --login-gradient: linear-gradient(to bottom, #0f0f0f, #151515, #0f0f0f);
+  --login-text: #FFFFFF;
+  --bg-sidebar-hover: #2a2a2a;
+  --bg-sidebar-active: rgba(249, 115, 22, 0.1);
+  --text-sidebar-active: #f97316;
+  --text-sidebar-muted: #a1a1aa;
+  --border-sidebar: #2a2a2a;
+}
+
 body {
   margin: 0;
-  background-color: #0f0f0f;
-  color: #ffffff;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-family: 'Inter', sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .input {
-  @apply w-full rounded-lg border border-[#333] bg-[#0f0f0f] px-3 py-2 text-sm text-white outline-none focus:border-[#f97316];
+  @apply w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors;
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-primary);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--shadow);
+  background-color: var(--input-bg-focus);
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
 }

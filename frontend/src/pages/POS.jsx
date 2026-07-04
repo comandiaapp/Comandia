@@ -49,29 +49,35 @@ const ESTADOS_PEDIDO_ACTIVOS = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pe
 const COLOR_ESTADO_PEDIDO = {
   abierto: '#6b7280',
   enviado_cocina: '#3b82f6',
-  listo: '#22c55e',
-  cuenta_pedida: '#eab308',
-  pagado: '#22c55e',
-  cancelado: '#ef4444',
+  listo: 'var(--success)',
+  cuenta_pedida: 'var(--warning)',
+  pagado: 'var(--success)',
+  cancelado: 'var(--error)',
 };
 
 const COLOR_ESTADO_ITEM = {
   pendiente: '#71717a',
-  en_preparacion: '#f97316',
-  listo: '#22c55e',
+  en_preparacion: 'var(--accent)',
+  listo: 'var(--success)',
   entregado: '#71717a',
 };
 
 const METODOS_PAGO = [
-  { value: 'efectivo', label: 'Efectivo', color: '#f97316' },
-  { value: 'tarjeta', label: 'Tarjeta', color: '#f97316' },
-  { value: 'qr', label: 'QR', color: '#f97316' },
+  { value: 'efectivo', label: 'Efectivo', color: 'var(--accent)' },
+  { value: 'tarjeta', label: 'Tarjeta', color: 'var(--accent)' },
+  { value: 'qr', label: 'QR', color: 'var(--accent)' },
   { value: 'nequi', label: 'Nequi', color: '#8B5CF6', icono: Smartphone },
   { value: 'transferencia', label: 'Transferencia', color: '#3B82F6', icono: Building2 },
-  { value: 'mixto', label: 'Mixto', color: '#f97316' },
+  { value: 'mixto', label: 'Mixto', color: 'var(--accent)' },
 ];
 
 const METODOS_MIXTO = METODOS_PAGO.filter((m) => m.value !== 'mixto');
+
+// Los colores de estado pueden ser var(--...) o hex directo; color-mix
+// permite obtener un fondo translúcido a partir de cualquiera de los dos.
+function fondoConAlpha(color) {
+  return `color-mix(in srgb, ${color} 10%, transparent)`;
+}
 
 function tiempoTranscurrido(fechaIso) {
   const ms = Date.now() - new Date(fechaIso).getTime();
@@ -343,7 +349,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
 
   if (cargando) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#0f0f0f]">
+      <div className="flex h-full items-center justify-center bg-[var(--bg-primary)]">
         <Spinner />
       </div>
     );
@@ -362,27 +368,27 @@ function POS({ mesaId, onCerrar = () => {} }) {
   });
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#0f0f0f] md:flex-row">
+    <div className="flex h-full flex-col overflow-hidden bg-[var(--bg-primary)] md:flex-row">
       {/* Panel izquierdo: pedido actual */}
-      <div className="flex w-full flex-col border-b border-[#2a2a2a] md:w-[40%] md:border-b-0 md:border-r">
-        <div className="border-b border-[#2a2a2a] p-4">
+      <div className="flex w-full flex-col border-b border-[var(--border)] md:w-[40%] md:border-b-0 md:border-r">
+        <div className="border-b border-[var(--border)] p-4">
           <button
             type="button"
             onClick={onCerrar}
-            className="mb-2 flex items-center gap-1 text-sm text-[#a1a1aa] hover:text-white"
+            className="mb-2 flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <ArrowLeft size={14} />
             Volver a mesas
           </button>
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-lg font-bold text-white">
+            <h1 className="text-lg font-bold text-[var(--text-primary)]">
               Mesa {mesa?.numero} — Pedido #{String(pedido?.numero_jornada ?? 0).padStart(2, '0')}
             </h1>
             <span
               className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold"
               style={{
                 color: COLOR_ESTADO_PEDIDO[pedido?.estado],
-                backgroundColor: `${COLOR_ESTADO_PEDIDO[pedido?.estado]}1a`,
+                backgroundColor: fondoConAlpha(COLOR_ESTADO_PEDIDO[pedido?.estado]),
               }}
             >
               {LABEL_ESTADO_PEDIDO[pedido?.estado] || pedido?.estado}
@@ -403,23 +409,23 @@ function POS({ mesaId, onCerrar = () => {} }) {
               ))}
             </div>
           ) : (
-            <p className="py-12 text-center text-sm text-[#a1a1aa]">Agrega productos del menú →</p>
+            <p className="py-12 text-center text-sm text-[var(--text-secondary)]">Agrega productos del menú →</p>
           )}
         </div>
 
-        <div className="space-y-3 border-t border-[#2a2a2a] p-4">
-          <div className="flex justify-between text-sm text-[#a1a1aa]">
+        <div className="space-y-3 border-t border-[var(--border)] p-4">
+          <div className="flex justify-between text-sm text-[var(--text-secondary)]">
             <span>Subtotal</span>
             <span>{formatearPrecio(subtotal)}</span>
           </div>
 
           <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-[#a1a1aa]">Descuento</span>
+            <span className="text-[var(--text-secondary)]">Descuento</span>
             <div className="flex items-center gap-1">
               <select
                 value={descuentoModo}
                 onChange={(e) => setDescuentoModo(e.target.value)}
-                className="rounded-md border border-[#333] bg-[#0f0f0f] px-1 py-1 text-xs text-white"
+                className="rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-1 py-1 text-xs text-[var(--text-primary)]"
               >
                 <option value="monto">$</option>
                 <option value="porcentaje">%</option>
@@ -429,36 +435,36 @@ function POS({ mesaId, onCerrar = () => {} }) {
                 min="0"
                 value={descuentoValor}
                 onChange={(e) => setDescuentoValor(e.target.value)}
-                className="w-20 rounded-md border border-[#333] bg-[#0f0f0f] px-2 py-1 text-right text-white outline-none focus:border-[#f97316]"
+                className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-[#a1a1aa]">Impuesto</span>
+            <span className="text-[var(--text-secondary)]">Impuesto</span>
             <input
               type="number"
               min="0"
               value={impuesto}
               onChange={(e) => setImpuesto(e.target.value)}
-              className="w-24 rounded-md border border-[#333] bg-[#0f0f0f] px-2 py-1 text-right text-white outline-none focus:border-[#f97316]"
+              className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
           </div>
 
           <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-[#a1a1aa]">Propina</span>
+            <span className="text-[var(--text-secondary)]">Propina</span>
             <input
               type="number"
               min="0"
               value={propina}
               onChange={(e) => setPropina(e.target.value)}
-              className="w-24 rounded-md border border-[#333] bg-[#0f0f0f] px-2 py-1 text-right text-white outline-none focus:border-[#f97316]"
+              className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
           </div>
 
-          <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
-            <span className="text-base font-semibold text-white">TOTAL</span>
-            <span className="text-2xl font-bold text-[#f97316]">{formatearPrecio(totalCalculado)}</span>
+          <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+            <span className="text-base font-semibold text-[var(--text-primary)]">TOTAL</span>
+            <span className="text-2xl font-bold text-[var(--accent)]">{formatearPrecio(totalCalculado)}</span>
           </div>
 
           <div className="space-y-2 pt-1">
@@ -479,7 +485,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
               type="button"
               onClick={pedido?.estado === 'cuenta_pedida' ? () => setModalPrecuenta(true) : handlePedirCuenta}
               disabled={!pedido?.items?.length}
-              className="w-full rounded-lg bg-[#eab308] px-4 py-2.5 text-sm font-semibold text-black hover:bg-[#ca9a06] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-lg bg-[var(--warning)] px-4 py-2.5 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pedido?.estado === 'cuenta_pedida' ? 'Ver precuenta' : 'Pedir cuenta'}
             </button>
@@ -487,7 +493,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
               <button
                 type="button"
                 onClick={handleCancelarPedido}
-                className="w-full rounded-lg border border-red-500/40 px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/10"
+                className="w-full rounded-lg border border-[var(--error)]/40 px-4 py-2.5 text-sm font-semibold text-[var(--error)] hover:bg-[var(--error)]/10"
               >
                 Cancelar pedido
               </button>
@@ -500,26 +506,26 @@ function POS({ mesaId, onCerrar = () => {} }) {
       <div className="flex w-full flex-1 flex-col overflow-hidden md:w-[60%]">
         {pedido?.estado === 'cuenta_pedida' ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-            <p className="text-lg text-white">La mesa solicitó la cuenta.</p>
-            <p className="text-sm text-[#a1a1aa]">¿Reabrir cuenta para seguir agregando productos?</p>
+            <p className="text-lg text-[var(--text-primary)]">La mesa solicitó la cuenta.</p>
+            <p className="text-sm text-[var(--text-secondary)]">¿Reabrir cuenta para seguir agregando productos?</p>
             <button
               type="button"
               onClick={handleReabrirCuenta}
-              className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
             >
               Reabrir cuenta
             </button>
           </div>
         ) : (
           <>
-            <div className="border-b border-[#2a2a2a] p-4">
+            <div className="border-b border-[var(--border)] p-4">
               <div className="relative mb-3">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
                 <input
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   placeholder="Buscar productos..."
-                  className="w-full rounded-lg border border-[#333] bg-[#0f0f0f] py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-[#f97316]"
+                  className="w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
                 />
               </div>
 
@@ -529,8 +535,8 @@ function POS({ mesaId, onCerrar = () => {} }) {
                   onClick={() => setCategoriaActiva('')}
                   className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
                     categoriaActiva === ''
-                      ? 'bg-[#f97316] text-white'
-                      : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   Todas
@@ -542,8 +548,8 @@ function POS({ mesaId, onCerrar = () => {} }) {
                     onClick={() => setCategoriaActiva(categoria.id)}
                     className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
                       categoriaActiva === categoria.id
-                        ? 'bg-[#f97316] text-white'
-                        : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+                        ? 'bg-[var(--accent)] text-white'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {categoria.nombre}
@@ -563,7 +569,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
                   />
                 ))}
                 {productosFiltrados.length === 0 && (
-                  <p className="col-span-full py-12 text-center text-sm text-[#a1a1aa]">
+                  <p className="col-span-full py-12 text-center text-sm text-[var(--text-secondary)]">
                     No se encontraron productos.
                   </p>
                 )}
@@ -640,26 +646,32 @@ function ItemPedido({ item, onCantidad, onEliminar }) {
   const colorEstado = COLOR_ESTADO_ITEM[estado] || COLOR_ESTADO_ITEM.pendiente;
 
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-3">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colorEstado }} />
-            {enPreparacion && <Flame size={12} className="shrink-0 text-[#f97316]" />}
+            {enPreparacion && <Flame size={12} className="shrink-0 text-[var(--accent)]" />}
             <p
               className={`truncate font-medium ${
-                entregado ? 'text-[#71717a] line-through' : listo ? 'text-[#22c55e]' : enPreparacion ? 'text-[#f97316]' : 'text-white'
+                entregado
+                  ? 'text-[var(--text-secondary)] line-through'
+                  : listo
+                    ? 'text-[var(--success)]'
+                    : enPreparacion
+                      ? 'text-[var(--accent)]'
+                      : 'text-[var(--text-primary)]'
               }`}
             >
               {item.nombre_producto}
             </p>
           </div>
           {item.modificadores?.length > 0 && (
-            <p className="mt-0.5 pl-3.5 text-xs text-[#a1a1aa]">{item.modificadores.map((m) => m.nombre_opcion).join(', ')}</p>
+            <p className="mt-0.5 pl-3.5 text-xs text-[var(--text-secondary)]">{item.modificadores.map((m) => m.nombre_opcion).join(', ')}</p>
           )}
-          {item.notas && <p className="mt-0.5 pl-3.5 text-xs italic text-[#a1a1aa]">"{item.notas}"</p>}
+          {item.notas && <p className="mt-0.5 pl-3.5 text-xs italic text-[var(--text-secondary)]">"{item.notas}"</p>}
         </div>
-        <button type="button" onClick={onEliminar} className="shrink-0 text-[#a1a1aa] hover:text-red-400">
+        <button type="button" onClick={onEliminar} className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--error)]">
           <Trash2 size={16} />
         </button>
       </div>
@@ -669,22 +681,22 @@ function ItemPedido({ item, onCantidad, onEliminar }) {
           <button
             type="button"
             onClick={() => onCantidad(item.cantidad - 1)}
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-[#333] text-white hover:bg-[#2a2a2a]"
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
           >
             <Minus size={12} />
           </button>
-          <span className="w-6 text-center text-sm text-white">{item.cantidad}</span>
+          <span className="w-6 text-center text-sm text-[var(--text-primary)]">{item.cantidad}</span>
           <button
             type="button"
             onClick={() => onCantidad(item.cantidad + 1)}
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-[#333] text-white hover:bg-[#2a2a2a]"
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
           >
             <Plus size={12} />
           </button>
         </div>
         <div className="text-right text-sm">
-          <p className="text-[#a1a1aa]">{formatearPrecio(item.precio_unitario)} c/u</p>
-          <p className="font-semibold text-white">{formatearPrecio(item.subtotal)}</p>
+          <p className="text-[var(--text-secondary)]">{formatearPrecio(item.precio_unitario)} c/u</p>
+          <p className="font-semibold text-[var(--text-primary)]">{formatearPrecio(item.subtotal)}</p>
         </div>
       </div>
     </div>
@@ -697,9 +709,9 @@ function TarjetaProducto({ producto, onClick, deshabilitado }) {
       type="button"
       onClick={onClick}
       disabled={!producto.disponible || deshabilitado}
-      className="flex flex-col overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] text-left transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-left transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
     >
-      <div className="flex h-20 items-center justify-center bg-[#141414] text-[#333]">
+      <div className="flex h-20 items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
         {producto.imagen_url ? (
           <img src={producto.imagen_url} alt={producto.nombre} className="h-full w-full object-cover" />
         ) : (
@@ -707,8 +719,8 @@ function TarjetaProducto({ producto, onClick, deshabilitado }) {
         )}
       </div>
       <div className="p-2.5">
-        <p className="truncate text-sm font-medium text-white">{producto.nombre}</p>
-        <p className="mt-0.5 text-sm font-semibold text-[#f97316]">{formatearPrecio(producto.precio)}</p>
+        <p className="truncate text-sm font-medium text-[var(--text-primary)]">{producto.nombre}</p>
+        <p className="mt-0.5 text-sm font-semibold text-[var(--accent)]">{formatearPrecio(producto.precio)}</p>
       </div>
     </button>
   );
@@ -770,14 +782,14 @@ function ModalModificadores({ producto, onAgregar, onCancelar }) {
       <form onSubmit={handleSubmit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
         {(producto.modificadores || []).map((grupo) => (
           <div key={grupo.id}>
-            <p className="mb-2 text-sm font-medium text-white">
-              {grupo.nombre} {grupo.requerido && <span className="text-[#f97316]">*</span>}
+            <p className="mb-2 text-sm font-medium text-[var(--text-primary)]">
+              {grupo.nombre} {grupo.requerido && <span className="text-[var(--accent)]">*</span>}
             </p>
             <div className="space-y-1.5">
               {grupo.opciones.map((opcion) => (
                 <label
                   key={opcion.id}
-                  className="flex items-center justify-between rounded-lg border border-[#333] px-3 py-2 text-sm text-white"
+                  className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)]"
                 >
                   <span className="flex items-center gap-2">
                     <input
@@ -793,12 +805,12 @@ function ModalModificadores({ producto, onAgregar, onCancelar }) {
                           ? handleSeleccionMultiple(grupo.id, opcion.id, e.target.checked)
                           : handleSeleccionUnica(grupo.id, opcion.id)
                       }
-                      className="accent-[#f97316]"
+                      className="accent-[var(--accent)]"
                     />
                     {opcion.nombre}
                   </span>
                   {Number(opcion.precio_extra) > 0 && (
-                    <span className="text-[#a1a1aa]">+{formatearPrecio(opcion.precio_extra)}</span>
+                    <span className="text-[var(--text-secondary)]">+{formatearPrecio(opcion.precio_extra)}</span>
                   )}
                 </label>
               ))}
@@ -821,22 +833,22 @@ function ModalModificadores({ producto, onAgregar, onCancelar }) {
             <button
               type="button"
               onClick={() => setCantidad((c) => Math.max(1, c - 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-[#333] text-white hover:bg-[#2a2a2a]"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
             >
               <Minus size={14} />
             </button>
-            <span className="w-6 text-center text-white">{cantidad}</span>
+            <span className="w-6 text-center text-[var(--text-primary)]">{cantidad}</span>
             <button
               type="button"
               onClick={() => setCantidad((c) => c + 1)}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-[#333] text-white hover:bg-[#2a2a2a]"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
             >
               <Plus size={14} />
             </button>
           </div>
         </Campo>
 
-        <button type="submit" className="w-full rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d]">
+        <button type="submit" className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">
           Agregar al pedido — {formatearPrecio(totalItem)}
         </button>
       </form>
@@ -864,36 +876,36 @@ function ModalPrecuenta({
   return (
     <Modal titulo={`${mesa ? `Mesa ${mesa.numero}` : 'Pedido'} — Precuenta`} onClose={onCancelar}>
       <div className="space-y-4">
-        <p className="text-sm text-[#a1a1aa]">
-          Mesa ocupada hace <span className="font-semibold text-white">{tiempoTranscurrido(pedido.created_at)}</span>
+        <p className="text-sm text-[var(--text-secondary)]">
+          Mesa ocupada hace <span className="font-semibold text-[var(--text-primary)]">{tiempoTranscurrido(pedido.created_at)}</span>
         </p>
 
-        <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-[#2a2a2a] p-3">
+        <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] p-3">
           {(pedido.items || []).map((item) => (
-            <div key={item.id} className="flex justify-between text-sm text-[#a1a1aa]">
+            <div key={item.id} className="flex justify-between text-sm text-[var(--text-secondary)]">
               <span>
                 {item.cantidad}× {item.nombre_producto}
               </span>
               <span>{formatearPrecio(item.subtotal)}</span>
             </div>
           ))}
-          {(pedido.items || []).length === 0 && <p className="text-sm text-[#a1a1aa]">Sin productos.</p>}
+          {(pedido.items || []).length === 0 && <p className="text-sm text-[var(--text-secondary)]">Sin productos.</p>}
         </div>
 
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between text-[#a1a1aa]">
+          <div className="flex justify-between text-[var(--text-secondary)]">
             <span>Subtotal</span>
             <span>{formatearPrecio(subtotal)}</span>
           </div>
-          <div className="flex justify-between text-[#a1a1aa]">
+          <div className="flex justify-between text-[var(--text-secondary)]">
             <span>Descuento</span>
             <span>-{formatearPrecio(descuentoMonto)}</span>
           </div>
-          <div className="flex justify-between text-[#a1a1aa]">
+          <div className="flex justify-between text-[var(--text-secondary)]">
             <span>Impuesto</span>
             <span>{formatearPrecio(impuesto)}</span>
           </div>
-          <div className="flex items-center justify-between text-[#a1a1aa]">
+          <div className="flex items-center justify-between text-[var(--text-secondary)]">
             <span>Propina</span>
             <span className="flex items-center gap-2">
               {formatearPrecio(propina)}
@@ -901,7 +913,7 @@ function ModalPrecuenta({
                 <button
                   type="button"
                   onClick={() => onAplicarPropinaSugerida(propinaSugerida)}
-                  className="rounded-md border border-[#333] px-2 py-0.5 text-xs text-[#f97316] hover:bg-[#f97316]/10"
+                  className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/10"
                 >
                   Sugerida 10%: {formatearPrecio(propinaSugerida)}
                 </button>
@@ -910,23 +922,23 @@ function ModalPrecuenta({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
-          <span className="text-base font-semibold text-white">TOTAL</span>
-          <span className="text-2xl font-bold text-[#f97316]">{formatearPrecio(total)}</span>
+        <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+          <span className="text-base font-semibold text-[var(--text-primary)]">TOTAL</span>
+          <span className="text-2xl font-bold text-[var(--accent)]">{formatearPrecio(total)}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={onImprimir}
-            className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2a2a2a]"
+            className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
           >
             Imprimir precuenta
           </button>
           <button
             type="button"
             onClick={onCobrarAhora}
-            className="rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
           >
             Cobrar ahora
           </button>
@@ -934,14 +946,14 @@ function ModalPrecuenta({
             type="button"
             disabled
             title="Próximamente"
-            className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-[#555] disabled:cursor-not-allowed"
+            className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] opacity-60 disabled:cursor-not-allowed"
           >
             Dividir cuenta
           </button>
           <button
             type="button"
             onClick={onCancelar}
-            className="rounded-lg border border-[#333] px-4 py-2.5 text-sm font-medium text-[#a1a1aa] hover:text-white"
+            className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             Cancelar
           </button>
@@ -985,9 +997,9 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
   return (
     <Modal titulo="Cobrar pedido" onClose={onCancelar}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[#2a2a2a] p-3">
+        <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] p-3">
           {(pedido.items || []).map((item) => (
-            <div key={item.id} className="flex justify-between text-sm text-[#a1a1aa]">
+            <div key={item.id} className="flex justify-between text-sm text-[var(--text-secondary)]">
               <span>
                 {item.cantidad}× {item.nombre_producto}
               </span>
@@ -1002,7 +1014,9 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
               type="button"
               onClick={() => onCambiarPropina(0)}
               className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${
-                Number(propina) === 0 ? 'bg-[#333] text-white' : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+                Number(propina) === 0
+                  ? 'bg-[var(--border)] text-[var(--text-primary)]'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Sin propina
@@ -1012,8 +1026,8 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
               onClick={() => onCambiarPropina(Math.round(baseParaPropina * 0.1))}
               className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${
                 Number(propina) === Math.round(baseParaPropina * 0.1)
-                  ? 'bg-green-600 text-white'
-                  : 'bg-green-600/10 text-green-400 hover:bg-green-600/20'
+                  ? 'bg-[var(--success)] text-white'
+                  : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20'
               }`}
             >
               Con propina 10%
@@ -1029,9 +1043,9 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
           />
         </Campo>
 
-        <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-3">
-          <span className="text-base font-semibold text-white">Total a cobrar</span>
-          <span className="text-2xl font-bold text-[#f97316]">{formatearPrecio(total)}</span>
+        <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+          <span className="text-base font-semibold text-[var(--text-primary)]">Total a cobrar</span>
+          <span className="text-2xl font-bold text-[var(--accent)]">{formatearPrecio(total)}</span>
         </div>
 
         <Campo label="Método de pago">
@@ -1047,8 +1061,8 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
                   className="flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium"
                   style={
                     seleccionado
-                      ? { borderColor: opcion.color, backgroundColor: `${opcion.color}1a`, color: opcion.color }
-                      : { borderColor: '#333', color: '#a1a1aa' }
+                      ? { borderColor: opcion.color, backgroundColor: fondoConAlpha(opcion.color), color: opcion.color }
+                      : { borderColor: 'var(--border)', color: 'var(--text-secondary)' }
                   }
                 >
                   {Icono && <Icono size={16} />}
@@ -1074,12 +1088,12 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
             </Campo>
             {montoRecibido !== '' && (
               faltanteEfectivo > 0 ? (
-                <p className="text-sm font-semibold text-red-500">
+                <p className="text-sm font-semibold text-[var(--error)]">
                   Falta {formatearPrecio(faltanteEfectivo)} para completar el pago
                 </p>
               ) : (
-                <p className="text-sm text-[#a1a1aa]">
-                  Cambio: <span className="font-semibold text-white">{formatearPrecio(cambio)}</span>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Cambio: <span className="font-semibold text-[var(--text-primary)]">{formatearPrecio(cambio)}</span>
                 </p>
               )
             )}
@@ -1102,12 +1116,12 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
                 </Campo>
               ))}
             </div>
-            <p className="text-sm text-[#a1a1aa]">
-              Total ingresado: <span className="font-semibold text-white">{formatearPrecio(totalMixto)}</span> /{' '}
+            <p className="text-sm text-[var(--text-secondary)]">
+              Total ingresado: <span className="font-semibold text-[var(--text-primary)]">{formatearPrecio(totalMixto)}</span> /{' '}
               {formatearPrecio(total)}
             </p>
             {faltanteMixto > 0 && (
-              <p className="text-sm font-semibold text-red-500">
+              <p className="text-sm font-semibold text-[var(--error)]">
                 Falta {formatearPrecio(faltanteMixto)} para completar el pago
               </p>
             )}
@@ -1117,7 +1131,7 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
         <button
           type="submit"
           disabled={guardando || montoInsuficiente}
-          className="w-full rounded-lg bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {guardando ? 'Cobrando...' : 'Cobrar'}
         </button>

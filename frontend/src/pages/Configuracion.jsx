@@ -70,16 +70,16 @@ function Configuracion() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Configuración</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Configuración</h1>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-b border-[#2a2a2a]">
+      <div className="mt-4 flex flex-wrap gap-2 border-b border-[var(--border)]">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id ? 'border-[#f97316] text-[#f97316]' : 'border-transparent text-[#a1a1aa] hover:text-white'
+              tab === t.id ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <t.icon size={16} />
@@ -90,7 +90,7 @@ function Configuracion() {
 
       <div className="mt-6 max-w-2xl">
         {!esAdmin && tab !== 'usuarios' && (
-          <p className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-sm text-orange-400">
+          <p className="mb-4 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-2 text-sm text-[var(--accent)]">
             Solo un administrador puede modificar la configuración. Puedes ver los valores actuales.
           </p>
         )}
@@ -176,7 +176,7 @@ function TabInformacion({ restaurante, onGuardar, esAdmin }) {
           <button
             type="submit"
             disabled={guardando}
-            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
           >
             {guardando ? 'Guardando...' : 'Guardar'}
           </button>
@@ -236,7 +236,7 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
               disabled={!esAdmin}
               onClick={() => setIvaPreset(String(valor))}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                ivaPreset === String(valor) ? 'bg-[#f97316] text-white' : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+                ivaPreset === String(valor) ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               {valor}%
@@ -247,7 +247,7 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
             disabled={!esAdmin}
             onClick={() => setIvaPreset('personalizado')}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-              ivaPreset === 'personalizado' ? 'bg-[#f97316] text-white' : 'bg-[#1a1a1a] text-[#a1a1aa] hover:text-white'
+              ivaPreset === 'personalizado' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             Personalizado
@@ -286,7 +286,7 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
         />
       </Campo>
 
-      <p className="pt-2 text-sm font-semibold text-white">Resolución de facturación DIAN</p>
+      <p className="pt-2 text-sm font-semibold text-[var(--text-primary)]">Resolución de facturación DIAN</p>
       <div className="grid grid-cols-2 gap-4">
         <Campo label="Número de resolución">
           <input
@@ -339,8 +339,8 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
         </Campo>
       </div>
 
-      <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-4">
-        <p className="mb-2 text-xs uppercase tracking-wide text-[#a1a1aa]">Vista previa del encabezado de factura</p>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
+        <p className="mb-2 text-xs uppercase tracking-wide text-[var(--text-secondary)]">Vista previa del encabezado de factura</p>
         <div className="rounded-lg bg-white p-4 text-center text-black">
           <p className="font-bold">{restaurante.nombre}</p>
           {nit && <p className="text-xs">NIT: {nit}</p>}
@@ -358,7 +358,7 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
           <button
             type="submit"
             disabled={guardando}
-            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
           >
             {guardando ? 'Guardando...' : 'Guardar'}
           </button>
@@ -411,14 +411,14 @@ function TabPreferencias({ restaurante, onGuardar, esAdmin }) {
           <option value="multi_estacion">Multi-estación</option>
         </select>
       </Campo>
-      <label className="flex items-center justify-between rounded-lg border border-[#2a2a2a] bg-[#141414] px-4 py-3">
-        <span className="text-sm text-white">Permitir pedidos sin jornada abierta</span>
+      <label className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
+        <span className="text-sm text-[var(--text-primary)]">Permitir pedidos sin jornada abierta</span>
         <input
           type="checkbox"
           checked={permitePedidosSinJornada}
           onChange={(e) => setPermitePedidosSinJornada(e.target.checked)}
           disabled={!esAdmin}
-          className="h-5 w-5 accent-[#f97316]"
+          className="h-5 w-5 accent-[var(--accent)]"
         />
       </label>
       <Campo label="Zona horaria">
@@ -434,7 +434,7 @@ function TabPreferencias({ restaurante, onGuardar, esAdmin }) {
           <button
             type="submit"
             disabled={guardando}
-            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
           >
             {guardando ? 'Guardando...' : 'Guardar'}
           </button>
@@ -501,7 +501,7 @@ function TabUsuarios({ esAdmin }) {
 
   if (!esAdmin) {
     return (
-      <p className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-6 text-center text-[#a1a1aa]">
+      <p className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-center text-[var(--text-secondary)]">
         Solo un administrador puede gestionar usuarios y roles.
       </p>
     );
@@ -515,16 +515,16 @@ function TabUsuarios({ esAdmin }) {
         <button
           type="button"
           onClick={() => setModalInvitar(true)}
-          className="flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+          className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
         >
           <UserPlus size={16} />
           Invitar nuevo usuario
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+      <div className="overflow-hidden rounded-xl border border-[var(--border)]">
         <table className="w-full text-left text-sm">
-          <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+          <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
             <tr>
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Email</th>
@@ -535,14 +535,14 @@ function TabUsuarios({ esAdmin }) {
           </thead>
           <tbody>
             {usuarios.map((u) => (
-              <tr key={u.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                <td className="px-4 py-3 text-white">{u.nombre}</td>
-                <td className="px-4 py-3 text-[#a1a1aa]">{u.email}</td>
-                <td className="px-4 py-3 text-[#a1a1aa]">{ROL_LABEL[u.rol] || u.rol}</td>
+              <tr key={u.id} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                <td className="px-4 py-3 text-[var(--text-primary)]">{u.nombre}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)]">{u.email}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)]">{ROL_LABEL[u.rol] || u.rol}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      u.activo ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                      u.activo ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--error)]/10 text-[var(--error)]'
                     }`}
                   >
                     {u.activo ? 'Activo' : 'Inactivo'}
@@ -554,7 +554,7 @@ function TabUsuarios({ esAdmin }) {
                       type="button"
                       onClick={() => setModalRol(u)}
                       title="Editar rol"
-                      className="rounded-lg p-2 text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white"
+                      className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]"
                     >
                       <Pencil size={16} />
                     </button>
@@ -562,8 +562,8 @@ function TabUsuarios({ esAdmin }) {
                       type="button"
                       onClick={() => handleCambiarEstado(u)}
                       title={u.activo ? 'Desactivar' : 'Activar'}
-                      className={`rounded-lg p-2 text-[#a1a1aa] ${
-                        u.activo ? 'hover:bg-red-500/10 hover:text-red-400' : 'hover:bg-green-500/10 hover:text-green-400'
+                      className={`rounded-lg p-2 text-[var(--text-secondary)] ${
+                        u.activo ? 'hover:bg-[var(--error)]/10 hover:text-[var(--error)]' : 'hover:bg-[var(--success)]/10 hover:text-[var(--success)]'
                       }`}
                     >
                       {u.activo ? <UserX size={16} /> : <UserCheck size={16} />}
@@ -574,7 +574,7 @@ function TabUsuarios({ esAdmin }) {
             ))}
             {usuarios.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[#a1a1aa]">
+                <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                   No hay usuarios registrados.
                 </td>
               </tr>
@@ -632,8 +632,8 @@ function FormularioInvitar({ onGuardar, onCancelar }) {
           ))}
         </select>
       </Campo>
-      <p className="text-xs text-[#a1a1aa]">
-        Se creará con la contraseña temporal <span className="font-semibold text-white">Comandia2024</span>. El usuario
+      <p className="text-xs text-[var(--text-secondary)]">
+        Se creará con la contraseña temporal <span className="font-semibold text-[var(--text-primary)]">Comandia2024</span>. El usuario
         deberá cambiarla en su primer inicio de sesión.
       </p>
       <BotonesFormulario onCancelar={onCancelar} guardando={guardando} textoGuardar="Invitar" />

@@ -10,7 +10,7 @@ const ALTURA_MAXIMA = 200;
 // caben todas. La barra con el valor más alto se resalta en naranja brillante.
 function GraficaBarras({ datos }) {
   if (datos.length === 0) {
-    return <p className="py-8 text-center text-sm text-[#a1a1aa]">No hay ventas para mostrar todavía.</p>;
+    return <p className="py-8 text-center text-sm text-[var(--text-secondary)]">No hay ventas para mostrar todavía.</p>;
   }
 
   const maximo = Math.max(...datos.map((d) => d.valor), 1);
@@ -28,12 +28,12 @@ function GraficaBarras({ datos }) {
             className="flex shrink-0 flex-col items-center justify-end gap-1"
             style={{ width: ANCHO_BARRA }}
           >
-            <span className="text-[10px] font-medium text-[#a1a1aa]">{formatearPrecio(dato.valor)}</span>
+            <span className="text-[10px] font-medium text-[var(--text-secondary)]">{formatearPrecio(dato.valor)}</span>
             <div
-              className={`w-full rounded-t-md transition-all ${esMaximo ? 'bg-[#f97316]' : 'bg-[#f97316]/40'}`}
+              className={`w-full rounded-t-md transition-all ${esMaximo ? 'bg-[var(--accent)]' : 'bg-[var(--accent)]/40'}`}
               style={{ height: Math.max(4, (dato.valor / maximo) * ALTURA_MAXIMA) }}
             />
-            <span className="text-[11px] text-[#a1a1aa]">{dato.label}</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">{dato.label}</span>
           </div>
         );
       })}

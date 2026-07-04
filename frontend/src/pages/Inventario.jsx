@@ -45,10 +45,10 @@ const UNIDADES = [
 const UNIDAD_LABEL = Object.fromEntries(UNIDADES.map((u) => [u.value, u.label]));
 
 const TIPOS_MOVIMIENTO = {
-  entrada: { label: 'Entrada', color: 'bg-green-500/10 text-green-400' },
-  salida: { label: 'Salida', color: 'bg-red-500/10 text-red-400' },
-  venta: { label: 'Venta', color: 'bg-red-500/10 text-red-400' },
-  merma: { label: 'Merma', color: 'bg-orange-500/10 text-orange-400' },
+  entrada: { label: 'Entrada', color: 'bg-[var(--success)]/10 text-[var(--success)]' },
+  salida: { label: 'Salida', color: 'bg-[var(--error)]/10 text-[var(--error)]' },
+  venta: { label: 'Venta', color: 'bg-[var(--error)]/10 text-[var(--error)]' },
+  merma: { label: 'Merma', color: 'bg-[var(--warning)]/10 text-[var(--warning)]' },
   ajuste: { label: 'Ajuste', color: 'bg-blue-500/10 text-blue-400' },
 };
 
@@ -86,9 +86,9 @@ function estadoStock(ingrediente) {
 }
 
 const ESTADO_COLOR = {
-  verde: 'bg-green-500/10 text-green-400',
-  amarillo: 'bg-yellow-500/10 text-yellow-400',
-  rojo: 'bg-red-500/10 text-red-400',
+  verde: 'bg-[var(--success)]/10 text-[var(--success)]',
+  amarillo: 'bg-[var(--warning)]/10 text-[var(--warning)]',
+  rojo: 'bg-[var(--error)]/10 text-[var(--error)]',
 };
 
 const ESTADO_LABEL = { verde: 'Bien', amarillo: 'Bajo', rojo: 'Crítico' };
@@ -116,21 +116,21 @@ function Inventario() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Inventario</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Inventario</h1>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-b border-[#2a2a2a]">
+      <div className="mt-4 flex flex-wrap gap-2 border-b border-[var(--border)]">
         {tabsVisibles.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id ? 'border-[#f97316] text-[#f97316]' : 'border-transparent text-[#a1a1aa] hover:text-white'
+              tab === t.id ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             {t.label}
             {t.id === 'alertas' && alertas.length > 0 && (
-              <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">{alertas.length}</span>
+              <span className="rounded-full bg-[var(--error)]/20 px-2 py-0.5 text-xs text-[var(--error)]">{alertas.length}</span>
             )}
           </button>
         ))}
@@ -248,7 +248,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
         <button
           type="button"
           onClick={() => setSoloStockBajo((v) => !v)}
-          className="mb-4 flex w-full items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm font-medium text-orange-400 hover:bg-orange-500/20"
+          className="mb-4 flex w-full items-center gap-2 rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm font-medium text-[var(--warning)] hover:bg-[var(--warning)]/20"
         >
           <AlertTriangle size={18} />
           ⚠️ {alertas.length} ingrediente{alertas.length === 1 ? '' : 's'} con stock bajo
@@ -260,16 +260,16 @@ function TabIngredientes({ alertas, recargarAlertas }) {
         <button
           type="button"
           onClick={() => setModalIngrediente('nuevo')}
-          className="flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+          className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
         >
           <Plus size={16} />
           Nuevo ingrediente
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+      <div className="overflow-hidden rounded-xl border border-[var(--border)]">
         <table className="w-full text-left text-sm">
-          <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+          <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
             <tr>
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Unidad</th>
@@ -285,14 +285,14 @@ function TabIngredientes({ alertas, recargarAlertas }) {
               const estado = estadoStock(ing);
               const negativo = Number(ing.stock_actual) < 0;
               return (
-                <tr key={ing.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                  <td className="px-4 py-3 text-white">{ing.nombre}</td>
-                  <td className="px-4 py-3 text-[#a1a1aa]">{UNIDAD_LABEL[ing.unidad_medida]}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${negativo ? 'text-red-400' : 'text-white'}`}>
+                <tr key={ing.id} className="border-t border-[var(--border)] bg-[var(--bg-card)]">
+                  <td className="px-4 py-3 text-[var(--text-primary)]">{ing.nombre}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{UNIDAD_LABEL[ing.unidad_medida]}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${negativo ? 'text-[var(--error)]' : 'text-[var(--text-primary)]'}`}>
                     {formatearCantidad(ing.stock_actual)}
                   </td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">{formatearCantidad(ing.stock_minimo)}</td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">{formatearPrecio(ing.costo_unitario)}</td>
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{formatearCantidad(ing.stock_minimo)}</td>
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{formatearPrecio(ing.costo_unitario)}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${ESTADO_COLOR[estado]}`}>
                       {ESTADO_LABEL[estado]}
@@ -304,7 +304,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
                         type="button"
                         onClick={() => setModalEntrada(ing)}
                         title="Registrar entrada"
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-green-500/10 hover:text-green-400"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--success)]/10 hover:text-[var(--success)]"
                       >
                         <PackagePlus size={16} />
                       </button>
@@ -312,7 +312,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
                         type="button"
                         onClick={() => setModalMerma(ing)}
                         title="Registrar merma"
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-orange-500/10 hover:text-orange-400"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--warning)]/10 hover:text-[var(--warning)]"
                       >
                         <TrendingDown size={16} />
                       </button>
@@ -320,7 +320,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
                         type="button"
                         onClick={() => setModalAjuste(ing)}
                         title="Ajustar stock"
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-blue-500/10 hover:text-blue-400"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-blue-500/10 hover:text-blue-400"
                       >
                         <SlidersHorizontal size={16} />
                       </button>
@@ -328,7 +328,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
                         type="button"
                         onClick={() => setModalIngrediente(ing)}
                         title="Editar"
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                       >
                         <Pencil size={16} />
                       </button>
@@ -336,7 +336,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
                         type="button"
                         onClick={() => handleEliminarIngrediente(ing)}
                         title="Eliminar"
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-red-500/10 hover:text-red-400"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--error)]/10 hover:text-[var(--error)]"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -347,7 +347,7 @@ function TabIngredientes({ alertas, recargarAlertas }) {
             })}
             {listaMostrada.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[#a1a1aa]">
+                <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                   No hay ingredientes registrados.
                 </td>
               </tr>
@@ -509,9 +509,9 @@ function FormularioEntrada({ ingrediente, onGuardar, onCancelar }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-[#a1a1aa]">
+      <p className="text-sm text-[var(--text-secondary)]">
         Stock actual:{' '}
-        <span className="text-white">
+        <span className="text-[var(--text-primary)]">
           {formatearCantidad(ingrediente.stock_actual)} {UNIDAD_LABEL[ingrediente.unidad_medida]}
         </span>
       </p>
@@ -559,9 +559,9 @@ function FormularioMerma({ ingrediente, onGuardar, onCancelar }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-[#a1a1aa]">
+      <p className="text-sm text-[var(--text-secondary)]">
         Stock actual:{' '}
-        <span className="text-white">
+        <span className="text-[var(--text-primary)]">
           {formatearCantidad(ingrediente.stock_actual)} {UNIDAD_LABEL[ingrediente.unidad_medida]}
         </span>
       </p>
@@ -615,9 +615,9 @@ function FormularioAjuste({ ingrediente, onGuardar, onCancelar }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-[#a1a1aa]">
+      <p className="text-sm text-[var(--text-secondary)]">
         Stock actual:{' '}
-        <span className="text-white">
+        <span className="text-[var(--text-primary)]">
           {formatearCantidad(ingrediente.stock_actual)} {UNIDAD_LABEL[ingrediente.unidad_medida]}
         </span>
       </p>
@@ -725,7 +725,7 @@ function TabRecetas() {
           <button
             type="button"
             onClick={() => setModalAgregar(true)}
-            className="flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+            className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
           >
             <Plus size={16} />
             Agregar ingrediente a receta
@@ -734,14 +734,14 @@ function TabRecetas() {
       </div>
 
       {!productoId ? (
-        <p className="py-8 text-center text-[#a1a1aa]">Selecciona un producto para ver o editar su receta.</p>
+        <p className="py-8 text-center text-[var(--text-secondary)]">Selecciona un producto para ver o editar su receta.</p>
       ) : cargando ? (
         <Spinner />
       ) : (
         <>
-          <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+          <div className="overflow-hidden rounded-xl border border-[var(--border)]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+              <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-4 py-3">Ingrediente</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
@@ -752,20 +752,20 @@ function TabRecetas() {
               </thead>
               <tbody>
                 {recetaItems.map((item) => (
-                  <tr key={item.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                    <td className="px-4 py-3 text-white">{item.ingrediente_nombre}</td>
-                    <td className="px-4 py-3 text-right text-[#a1a1aa]">
+                  <tr key={item.id} className="border-t border-[var(--border)] bg-[var(--bg-card)]">
+                    <td className="px-4 py-3 text-[var(--text-primary)]">{item.ingrediente_nombre}</td>
+                    <td className="px-4 py-3 text-right text-[var(--text-secondary)]">
                       {formatearCantidad(item.cantidad)} {UNIDAD_LABEL[item.unidad_medida]}
                     </td>
-                    <td className="px-4 py-3 text-right text-[#a1a1aa]">{formatearPrecio(item.costo_unitario)}</td>
-                    <td className="px-4 py-3 text-right text-white">
+                    <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{formatearPrecio(item.costo_unitario)}</td>
+                    <td className="px-4 py-3 text-right text-[var(--text-primary)]">
                       {formatearPrecio(item.cantidad * item.costo_unitario)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         type="button"
                         onClick={() => handleEliminarItem(item)}
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-red-500/10 hover:text-red-400"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--error)]/10 hover:text-[var(--error)]"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -774,7 +774,7 @@ function TabRecetas() {
                 ))}
                 {recetaItems.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-[#a1a1aa]">
+                    <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                       Este producto todavía no tiene receta.
                     </td>
                   </tr>
@@ -783,9 +783,9 @@ function TabRecetas() {
             </table>
           </div>
 
-          <div className="mt-4 flex items-center justify-end gap-2 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] px-5 py-4">
-            <span className="text-sm text-[#a1a1aa]">Costo estimado del plato:</span>
-            <span className="font-bold text-[#f97316]">{formatearPrecio(costoEstimado)}</span>
+          <div className="mt-4 flex items-center justify-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-4">
+            <span className="text-sm text-[var(--text-secondary)]">Costo estimado del plato:</span>
+            <span className="font-bold text-[var(--accent)]">{formatearPrecio(costoEstimado)}</span>
           </div>
         </>
       )}
@@ -917,9 +917,9 @@ function TabMovimientos() {
       {cargando ? (
         <Spinner />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+        <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+            <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
               <tr>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Ingrediente</th>
@@ -932,9 +932,9 @@ function TabMovimientos() {
             </thead>
             <tbody>
               {movimientos.map((m) => (
-                <tr key={m.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                  <td className="px-4 py-3 text-[#a1a1aa]">{formatearFechaHora(m.created_at)}</td>
-                  <td className="px-4 py-3 text-white">{m.ingrediente_nombre}</td>
+                <tr key={m.id} className="border-t border-[var(--border)] bg-[var(--bg-card)]">
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{formatearFechaHora(m.created_at)}</td>
+                  <td className="px-4 py-3 text-[var(--text-primary)]">{m.ingrediente_nombre}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${TIPOS_MOVIMIENTO[m.tipo]?.color}`}>
                       {TIPOS_MOVIMIENTO[m.tipo]?.label || m.tipo}
@@ -942,22 +942,22 @@ function TabMovimientos() {
                   </td>
                   <td
                     className={`px-4 py-3 text-right font-semibold ${
-                      Number(m.cantidad) < 0 ? 'text-red-400' : 'text-green-400'
+                      Number(m.cantidad) < 0 ? 'text-[var(--error)]' : 'text-[var(--success)]'
                     }`}
                   >
                     {Number(m.cantidad) > 0 ? '+' : ''}
                     {formatearCantidad(m.cantidad)}
                   </td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">
                     {formatearCantidad(m.stock_antes)} → {formatearCantidad(m.stock_despues)}
                   </td>
-                  <td className="px-4 py-3 text-[#a1a1aa]">{m.motivo || '-'}</td>
-                  <td className="px-4 py-3 text-[#a1a1aa]">{m.usuario_nombre || '-'}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{m.motivo || '-'}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{m.usuario_nombre || '-'}</td>
                 </tr>
               ))}
               {movimientos.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-[#a1a1aa]">
+                  <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                     No hay movimientos registrados.
                   </td>
                 </tr>
@@ -988,9 +988,9 @@ function TabAlertas({ alertas, recargarAlertas, esGestor }) {
 
   if (alertas.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] py-16">
-        <CheckCircle2 className="text-green-400" size={40} />
-        <p className="text-white">Todo el inventario está bien ✅</p>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] py-16">
+        <CheckCircle2 className="text-[var(--success)]" size={40} />
+        <p className="text-[var(--text-primary)]">Todo el inventario está bien ✅</p>
       </div>
     );
   }
@@ -1002,24 +1002,24 @@ function TabAlertas({ alertas, recargarAlertas, esGestor }) {
           const diferencia = Number(ing.stock_actual) - Number(ing.stock_minimo);
           const negativo = Number(ing.stock_actual) < 0;
           return (
-            <div key={ing.id} className="rounded-xl border border-red-500/30 bg-red-500/5 p-5">
-              <h3 className="text-lg font-semibold text-white">{ing.nombre}</h3>
+            <div key={ing.id} className="rounded-xl border border-[var(--error)]/30 bg-[var(--error)]/5 p-5">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">{ing.nombre}</h3>
               <div className="mt-3 space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-[#a1a1aa]">Stock actual</span>
-                  <span className={`font-semibold ${negativo ? 'text-red-400' : 'text-white'}`}>
+                  <span className="text-[var(--text-secondary)]">Stock actual</span>
+                  <span className={`font-semibold ${negativo ? 'text-[var(--error)]' : 'text-[var(--text-primary)]'}`}>
                     {formatearCantidad(ing.stock_actual)} {UNIDAD_LABEL[ing.unidad_medida]}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#a1a1aa]">Stock mínimo</span>
-                  <span className="text-white">
+                  <span className="text-[var(--text-secondary)]">Stock mínimo</span>
+                  <span className="text-[var(--text-primary)]">
                     {formatearCantidad(ing.stock_minimo)} {UNIDAD_LABEL[ing.unidad_medida]}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#a1a1aa]">Diferencia</span>
-                  <span className="font-semibold text-red-400">
+                  <span className="text-[var(--text-secondary)]">Diferencia</span>
+                  <span className="font-semibold text-[var(--error)]">
                     {formatearCantidad(diferencia)} {UNIDAD_LABEL[ing.unidad_medida]}
                   </span>
                 </div>
@@ -1028,7 +1028,7 @@ function TabAlertas({ alertas, recargarAlertas, esGestor }) {
                 <button
                   type="button"
                   onClick={() => setModalEntrada(ing)}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
                 >
                   <PackagePlus size={16} />
                   Registrar entrada

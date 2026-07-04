@@ -24,12 +24,26 @@ const CAMPOS_ACTUALIZABLES_CONFIGURACION = [
   'factura_hasta',
 ];
 
-async function crear(db, { id, nombre, email, telefono, direccion, modo_operacion, plan }) {
+async function crear(
+  db,
+  { id, nombre, email, telefono, direccion, ciudad, modo_operacion, plan, trial_expira }
+) {
   const { rows } = await db.query(
-    `INSERT INTO restaurantes (id, nombre, email, telefono, direccion, modo_operacion, plan)
-     VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'todo_en_uno'), COALESCE($7, 'basico'))
+    `INSERT INTO restaurantes
+       (id, nombre, email, telefono, direccion, ciudad, modo_operacion, plan, trial_expira, suscripcion_activa, suscripcion_plan)
+     VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'todo_en_uno'), COALESCE($8, 'basico'), $9, true, 'trial')
      RETURNING *`,
-    [id, nombre, email, telefono || null, direccion || null, modo_operacion || null, plan || null]
+    [
+      id,
+      nombre,
+      email,
+      telefono || null,
+      direccion || null,
+      ciudad || null,
+      modo_operacion || null,
+      plan || null,
+      trial_expira || null,
+    ]
   );
   return rows[0];
 }

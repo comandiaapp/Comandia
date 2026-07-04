@@ -97,12 +97,12 @@ function Compras() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-white">Compras</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Compras</h1>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setModalGenerar(true)}
-            className="flex items-center gap-2 rounded-lg bg-orange-500/10 px-4 py-2 text-sm font-semibold text-orange-400 hover:bg-orange-500/20"
+            className="flex items-center gap-2 rounded-lg bg-[var(--accent)]/10 px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/20"
           >
             <Sparkles size={16} />
             Generar desde alertas
@@ -110,7 +110,7 @@ function Compras() {
           <button
             type="button"
             onClick={() => setModalNueva(true)}
-            className="flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d]"
+            className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
           >
             <Plus size={16} />
             Nueva orden de compra
@@ -122,7 +122,7 @@ function Compras() {
         <button
           type="button"
           onClick={() => setModalGenerar(true)}
-          className="mt-4 flex w-full items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm font-medium text-orange-400 hover:bg-orange-500/20"
+          className="mt-4 flex w-full items-center gap-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3 text-sm font-medium text-[var(--accent)] hover:bg-[var(--accent)]/20"
         >
           <AlertTriangle size={18} />
           ⚠️ {alertas.length} ingrediente{alertas.length === 1 ? '' : 's'} necesita{alertas.length === 1 ? '' : 'n'} reposición
@@ -144,9 +144,9 @@ function Compras() {
       {cargando ? (
         <Spinner />
       ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border border-[#2a2a2a]">
+        <div className="mt-4 overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+            <thead className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
               <tr>
                 <th className="px-4 py-3">N.º</th>
                 <th className="px-4 py-3">Proveedor</th>
@@ -159,24 +159,24 @@ function Compras() {
             </thead>
             <tbody>
               {ordenes.map((orden) => (
-                <tr key={orden.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                  <td className="px-4 py-3 text-white">#{orden.numero}</td>
-                  <td className="px-4 py-3 text-[#a1a1aa]">{orden.proveedor || '-'}</td>
+                <tr key={orden.id} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                  <td className="px-4 py-3 text-[var(--text-primary)]">#{orden.numero}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{orden.proveedor || '-'}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${ESTADOS[orden.estado]?.color}`}>
                       {ESTADOS[orden.estado]?.label || orden.estado}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">{orden.items_count}</td>
-                  <td className="px-4 py-3 text-right text-white">{formatearPrecio(orden.total_estimado)}</td>
-                  <td className="px-4 py-3 text-[#a1a1aa]">{formatearFecha(orden.fecha_esperada)}</td>
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{orden.items_count}</td>
+                  <td className="px-4 py-3 text-right text-[var(--text-primary)]">{formatearPrecio(orden.total_estimado)}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{formatearFecha(orden.fecha_esperada)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       <button
                         type="button"
                         onClick={() => setModalVer(orden.id)}
                         title="Ver orden"
-                        className="rounded-lg p-2 text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-white"
+                        className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--border)] hover:text-[var(--text-primary)]"
                       >
                         <Eye size={16} />
                       </button>
@@ -185,7 +185,7 @@ function Compras() {
                           type="button"
                           onClick={() => handleCancelar(orden)}
                           title="Cancelar orden"
-                          className="rounded-lg p-2 text-[#a1a1aa] hover:bg-red-500/10 hover:text-red-400"
+                          className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400"
                         >
                           <XCircle size={16} />
                         </button>
@@ -196,7 +196,7 @@ function Compras() {
               ))}
               {ordenes.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-[#a1a1aa]">
+                  <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                     No hay órdenes de compra registradas.
                   </td>
                 </tr>
@@ -285,7 +285,7 @@ function FormularioGenerarDesdeAlertas({ onGuardar, onCancelar }) {
   if (cargando) return <Spinner />;
 
   if (sugeridas.length === 0) {
-    return <p className="py-6 text-center text-[#a1a1aa]">No hay ingredientes con stock bajo en este momento.</p>;
+    return <p className="py-6 text-center text-[var(--text-secondary)]">No hay ingredientes con stock bajo en este momento.</p>;
   }
 
   return (
@@ -296,17 +296,17 @@ function FormularioGenerarDesdeAlertas({ onGuardar, onCancelar }) {
           return (
             <div
               key={item.ingrediente_id}
-              className="flex items-center gap-3 rounded-lg border border-[#2a2a2a] bg-[#141414] p-3"
+              className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3"
             >
               <input
                 type="checkbox"
                 checked={incluido}
                 onChange={(e) => actualizarSeleccion(item.ingrediente_id, { incluido: e.target.checked })}
-                className="h-4 w-4 accent-[#f97316]"
+                className="h-4 w-4 accent-[var(--accent)]"
               />
               <div className="flex-1">
-                <p className="text-sm font-medium text-white">{item.nombre}</p>
-                <p className="text-xs text-[#a1a1aa]">
+                <p className="text-sm font-medium text-[var(--text-primary)]">{item.nombre}</p>
+                <p className="text-xs text-[var(--text-secondary)]">
                   Actual: {formatearCantidad(item.stock_actual)} · Mínimo: {formatearCantidad(item.stock_minimo)}{' '}
                   {UNIDAD_LABEL[item.unidad_medida] || item.unidad_medida}
                 </p>
@@ -422,11 +422,11 @@ function FormularioNuevaOrden({ onGuardar, onCancelar }) {
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-[#a1a1aa]">Items</span>
+          <span className="text-sm font-medium text-[var(--text-secondary)]">Items</span>
           <button
             type="button"
             onClick={agregarItem}
-            className="flex items-center gap-1 text-sm font-medium text-[#f97316] hover:text-[#ea6a0d]"
+            className="flex items-center gap-1 text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
           >
             <Plus size={14} />
             Agregar item
@@ -439,7 +439,7 @@ function FormularioNuevaOrden({ onGuardar, onCancelar }) {
             return (
               <div
                 key={index}
-                className="grid grid-cols-12 items-center gap-2 rounded-lg border border-[#2a2a2a] bg-[#141414] p-2"
+                className="grid grid-cols-12 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-2"
               >
                 <select
                   value={item.ingrediente_id}
@@ -471,24 +471,24 @@ function FormularioNuevaOrden({ onGuardar, onCancelar }) {
                   onChange={(e) => actualizarItem(index, { costo_unitario: e.target.value })}
                   className="input col-span-3"
                 />
-                <span className="col-span-1 text-right text-xs text-[#a1a1aa]">{formatearPrecio(subtotal)}</span>
+                <span className="col-span-1 text-right text-xs text-[var(--text-secondary)]">{formatearPrecio(subtotal)}</span>
                 <button
                   type="button"
                   onClick={() => quitarItem(index)}
-                  className="col-span-1 flex justify-end text-[#a1a1aa] hover:text-red-400"
+                  className="col-span-1 flex justify-end text-[var(--text-secondary)] hover:text-red-400"
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
             );
           })}
-          {items.length === 0 && <p className="py-4 text-center text-sm text-[#a1a1aa]">Agrega al menos un item.</p>}
+          {items.length === 0 && <p className="py-4 text-center text-sm text-[var(--text-secondary)]">Agrega al menos un item.</p>}
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-3">
-        <span className="text-sm text-[#a1a1aa]">Total estimado:</span>
-        <span className="font-bold text-[#f97316]">{formatearPrecio(totalEstimado)}</span>
+      <div className="flex items-center justify-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+        <span className="text-sm text-[var(--text-secondary)]">Total estimado:</span>
+        <span className="font-bold text-[var(--accent)]">{formatearPrecio(totalEstimado)}</span>
       </div>
 
       <BotonesFormulario onCancelar={onCancelar} guardando={guardando} />
@@ -569,16 +569,16 @@ function ModalVerOrden({ ordenId, onClose, onCambio }) {
             <span className={`rounded-full px-2 py-1 text-xs font-medium ${ESTADOS[orden.estado]?.color}`}>
               {ESTADOS[orden.estado]?.label}
             </span>
-            <span className="text-sm text-[#a1a1aa]">
-              Proveedor: <span className="text-white">{orden.proveedor || '-'}</span>
+            <span className="text-sm text-[var(--text-secondary)]">
+              Proveedor: <span className="text-[var(--text-primary)]">{orden.proveedor || '-'}</span>
             </span>
           </div>
 
-          {orden.notas && <p className="text-sm text-[#a1a1aa]">{orden.notas}</p>}
+          {orden.notas && <p className="text-sm text-[var(--text-secondary)]">{orden.notas}</p>}
 
-          <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+          <div className="overflow-hidden rounded-xl border border-[var(--border)]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+              <thead className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-3 py-2">Ingrediente</th>
                   <th className="px-3 py-2 text-right">Solicitado</th>
@@ -589,9 +589,9 @@ function ModalVerOrden({ ordenId, onClose, onCambio }) {
               </thead>
               <tbody>
                 {orden.items.map((item) => (
-                  <tr key={item.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                    <td className="px-3 py-2 text-white">{item.nombre_ingrediente}</td>
-                    <td className="px-3 py-2 text-right text-[#a1a1aa]">
+                  <tr key={item.id} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                    <td className="px-3 py-2 text-[var(--text-primary)]">{item.nombre_ingrediente}</td>
+                    <td className="px-3 py-2 text-right text-[var(--text-secondary)]">
                       {formatearCantidad(item.cantidad_solicitada)} {UNIDAD_LABEL[item.unidad_medida] || item.unidad_medida}
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -605,24 +605,24 @@ function ModalVerOrden({ ordenId, onClose, onCambio }) {
                           className="input w-24 py-1 text-right"
                         />
                       ) : (
-                        <span className="text-[#a1a1aa]">{formatearCantidad(item.cantidad_recibida)}</span>
+                        <span className="text-[var(--text-secondary)]">{formatearCantidad(item.cantidad_recibida)}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right text-[#a1a1aa]">{formatearPrecio(item.costo_unitario || 0)}</td>
-                    <td className="px-3 py-2 text-right text-white">{formatearPrecio(item.subtotal || 0)}</td>
+                    <td className="px-3 py-2 text-right text-[var(--text-secondary)]">{formatearPrecio(item.costo_unitario || 0)}</td>
+                    <td className="px-3 py-2 text-right text-[var(--text-primary)]">{formatearPrecio(item.subtotal || 0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-3">
-            <span className="text-sm text-[#a1a1aa]">Total estimado</span>
-            <span className="font-bold text-[#f97316]">{formatearPrecio(orden.total_estimado)}</span>
+          <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+            <span className="text-sm text-[var(--text-secondary)]">Total estimado</span>
+            <span className="font-bold text-[var(--accent)]">{formatearPrecio(orden.total_estimado)}</span>
           </div>
 
           {orden.estado === 'recibida' && (
-            <p className="text-sm text-[#a1a1aa]">Recibida el {formatearFecha(orden.fecha_recibida)}</p>
+            <p className="text-sm text-[var(--text-secondary)]">Recibida el {formatearFecha(orden.fecha_recibida)}</p>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
@@ -640,7 +640,7 @@ function ModalVerOrden({ ordenId, onClose, onCambio }) {
                 type="button"
                 onClick={handleRecibir}
                 disabled={guardando}
-                className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6a0d] disabled:opacity-60"
+                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
               >
                 {guardando ? 'Guardando...' : 'Marcar como recibida'}
               </button>
@@ -648,7 +648,7 @@ function ModalVerOrden({ ordenId, onClose, onCambio }) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[#333] px-4 py-2 text-sm font-medium text-[#a1a1aa] hover:text-white"
+              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               Cerrar
             </button>

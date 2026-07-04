@@ -6,6 +6,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import CocinaLayout from './components/CocinaLayout';
 import Login from './pages/Login';
+import Registro from './pages/Registro';
+import VerificarEmail from './pages/VerificarEmail';
+import OlvideMiPassword from './pages/OlvideMiPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Menu from './pages/Menu';
 import Mesas from './pages/Mesas';
@@ -42,12 +46,22 @@ function App() {
       <Toaster
         position="top-right"
         toastOptions={{
-          style: { background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a' },
+          style: {
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+          },
+          success: { iconTheme: { primary: 'var(--success)', secondary: 'var(--bg-card)' } },
+          error: { iconTheme: { primary: 'var(--error)', secondary: 'var(--bg-card)' } },
         }}
       />
       <Routes>
         <Route path="/" element={<Inicio />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/registro" element={<Registro />} />
+        <Route path="/verificar-email" element={<VerificarEmail />} />
+        <Route path="/olvide-mi-password" element={<OlvideMiPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/dashboard"
           element={

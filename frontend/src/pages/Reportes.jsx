@@ -59,16 +59,16 @@ function Reportes() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Reportes</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Reportes</h1>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-b border-[#2a2a2a]">
+      <div className="mt-4 flex flex-wrap gap-2 border-b border-[var(--border)]">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id ? 'border-[#f97316] text-[#f97316]' : 'border-transparent text-[#a1a1aa] hover:text-white'
+              tab === t.id ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             {t.label}
@@ -88,9 +88,9 @@ function Reportes() {
 
 function TarjetaMetrica({ titulo, valor }) {
   return (
-    <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-      <p className="text-sm text-[#a1a1aa]">{titulo}</p>
-      <p className="mt-2 text-2xl font-bold text-white">{valor}</p>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <p className="text-sm text-[var(--text-secondary)]">{titulo}</p>
+      <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">{valor}</p>
     </div>
   );
 }
@@ -114,7 +114,7 @@ function TabHoy() {
     <div>
       <div className="mb-4">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Fecha</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Fecha</span>
           <input
             type="date"
             value={fecha}
@@ -137,34 +137,34 @@ function TabHoy() {
             <TarjetaMetrica titulo="Propinas" valor={formatearPrecio(reporte.total_propinas)} />
           </div>
 
-          <div className="mt-6 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-6">
-            <h2 className="text-lg font-semibold text-white">Desglose por método de pago</h2>
+          <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Desglose por método de pago</h2>
             <div className="mt-4 space-y-3">
               {reporte.por_metodo_pago.map((m) => (
                 <div key={m.metodo}>
                   <div className="mb-1 flex justify-between text-sm">
-                    <span className="text-white">{LABEL_METODO_PAGO[m.metodo] || m.metodo}</span>
-                    <span className="text-[#a1a1aa]">
+                    <span className="text-[var(--text-primary)]">{LABEL_METODO_PAGO[m.metodo] || m.metodo}</span>
+                    <span className="text-[var(--text-secondary)]">
                       {formatearPrecio(m.total)} · {m.cantidad} pedidos
                     </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-[#2a2a2a]">
+                  <div className="h-2 w-full rounded-full bg-[var(--border)]">
                     <div
-                      className="h-2 rounded-full bg-[#f97316]"
+                      className="h-2 rounded-full bg-[var(--accent)]"
                       style={{ width: `${(m.total / maximoMetodo) * 100}%` }}
                     />
                   </div>
                 </div>
               ))}
               {reporte.por_metodo_pago.length === 0 && (
-                <p className="text-sm text-[#a1a1aa]">No hay ventas en esta fecha.</p>
+                <p className="text-sm text-[var(--text-secondary)]">No hay ventas en esta fecha.</p>
               )}
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-[#2a2a2a]">
+          <div className="mt-6 overflow-hidden rounded-xl border border-[var(--border)]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+              <thead className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Hora</th>
@@ -176,21 +176,21 @@ function TabHoy() {
               </thead>
               <tbody>
                 {reporte.pedidos.map((p) => (
-                  <tr key={p.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                    <td className="px-4 py-3 font-semibold text-white">
+                  <tr key={p.id} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                    <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
                       #{String(p.numero_jornada).padStart(2, '0')}
-                      <span className="ml-1 font-normal text-[#a1a1aa]">(Global: #{p.numero_global})</span>
+                      <span className="ml-1 font-normal text-[var(--text-secondary)]">(Global: #{p.numero_global})</span>
                     </td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">{formatearHoraCorta(p.updated_at)}</td>
-                    <td className="px-4 py-3 text-white">{p.mesa_numero || p.tipo}</td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">{p.cantidad_items}</td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">{LABEL_METODO_PAGO[p.pagado_con] || '-'}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-white">{formatearPrecio(p.total)}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{formatearHoraCorta(p.updated_at)}</td>
+                    <td className="px-4 py-3 text-[var(--text-primary)]">{p.mesa_numero || p.tipo}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{p.cantidad_items}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{LABEL_METODO_PAGO[p.pagado_con] || '-'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-[var(--text-primary)]">{formatearPrecio(p.total)}</td>
                   </tr>
                 ))}
                 {reporte.pedidos.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-[#a1a1aa]">
+                    <td colSpan={6} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                       No hay pedidos pagados en esta fecha.
                     </td>
                   </tr>
@@ -231,7 +231,7 @@ function TabPeriodo() {
     <div>
       <div className="mb-4 flex flex-wrap gap-4">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Fecha inicio</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Fecha inicio</span>
           <input
             type="date"
             value={fechaInicio}
@@ -241,7 +241,7 @@ function TabPeriodo() {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Fecha fin</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Fecha fin</span>
           <input
             type="date"
             value={fechaFin}
@@ -262,16 +262,16 @@ function TabPeriodo() {
             <TarjetaMetrica titulo="Pedidos del período" valor={reporte.cantidad_pedidos} />
           </div>
 
-          <div className="mt-6 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-6">
-            <h2 className="text-lg font-semibold text-white">Ventas por día</h2>
+          <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Ventas por día</h2>
             <div className="mt-4">
               <GraficaBarras datos={datosGrafica} />
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-[#2a2a2a]">
+          <div className="mt-6 overflow-hidden rounded-xl border border-[var(--border)]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+              <thead className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Pedidos</th>
@@ -280,8 +280,8 @@ function TabPeriodo() {
               </thead>
               <tbody>
                 {reporte.ventas_por_dia.map((d) => (
-                  <tr key={d.fecha} className="border-t border-[#2a2a2a] bg-[#141414]">
-                    <td className="px-4 py-3 text-white">
+                  <tr key={d.fecha} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                    <td className="px-4 py-3 text-[var(--text-primary)]">
                       {new Date(`${d.fecha}`).toLocaleDateString('es-CO', {
                         timeZone: 'America/Bogota',
                         weekday: 'long',
@@ -289,15 +289,15 @@ function TabPeriodo() {
                         month: '2-digit',
                       })}
                     </td>
-                    <td className="px-4 py-3 text-[#a1a1aa]">{d.cantidad_pedidos}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-white">
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{d.cantidad_pedidos}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-[var(--text-primary)]">
                       {formatearPrecio(d.total_ventas)}
                     </td>
                   </tr>
                 ))}
                 {reporte.ventas_por_dia.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-[#a1a1aa]">
+                    <td colSpan={3} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                       No hay ventas en este período.
                     </td>
                   </tr>
@@ -331,7 +331,7 @@ function TabProductos() {
     <div>
       <div className="mb-4 flex flex-wrap gap-4">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Fecha inicio</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Fecha inicio</span>
           <input
             type="date"
             value={fechaInicio}
@@ -341,7 +341,7 @@ function TabProductos() {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[#a1a1aa]">Fecha fin</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">Fecha fin</span>
           <input
             type="date"
             value={fechaFin}
@@ -356,9 +356,9 @@ function TabProductos() {
       {cargando ? (
         <Spinner />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+        <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+            <thead className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
               <tr>
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Producto</th>
@@ -370,24 +370,24 @@ function TabProductos() {
             </thead>
             <tbody>
               {productos.map((p, i) => (
-                <tr key={p.producto_id || p.nombre} className="border-t border-[#2a2a2a] bg-[#141414]">
-                  <td className="px-4 py-3 text-[#a1a1aa]">{MEDALLAS[i] || i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-white">{p.nombre}</td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">{p.cantidad_vendida}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-white">
+                <tr key={p.producto_id || p.nombre} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{MEDALLAS[i] || i + 1}</td>
+                  <td className="px-4 py-3 font-medium text-[var(--text-primary)]">{p.nombre}</td>
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">{p.cantidad_vendida}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-[var(--text-primary)]">
                     {formatearPrecio(p.total_generado)}
                   </td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">
                     {p.costo_total !== null ? formatearPrecio(p.costo_total) : '-'}
                   </td>
-                  <td className="px-4 py-3 text-right text-[#a1a1aa]">
+                  <td className="px-4 py-3 text-right text-[var(--text-secondary)]">
                     {p.margen_ganancia !== null ? formatearPrecio(p.margen_ganancia) : '-'}
                   </td>
                 </tr>
               ))}
               {productos.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-[#a1a1aa]">
+                  <td colSpan={6} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                     No hay productos vendidos en este período.
                   </td>
                 </tr>
@@ -441,9 +441,9 @@ function TabJornadas() {
 
   return (
     <div>
-      <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+      <div className="overflow-hidden rounded-xl border border-[var(--border)]">
         <table className="w-full text-left text-sm">
-          <thead className="bg-[#1a1a1a] text-[#a1a1aa]">
+          <thead className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
             <tr>
               <th className="px-4 py-3">Apertura</th>
               <th className="px-4 py-3">Cierre</th>
@@ -457,24 +457,24 @@ function TabJornadas() {
           </thead>
           <tbody>
             {jornadas.map((j) => (
-              <tr key={j.id} className="border-t border-[#2a2a2a] bg-[#141414]">
-                <td className="px-4 py-3 text-white">{formatearFechaHora(j.fecha_apertura)}</td>
-                <td className="px-4 py-3 text-[#a1a1aa]">{formatearFechaHora(j.fecha_cierre)}</td>
-                <td className="px-4 py-3 text-[#a1a1aa]">{j.usuario_apertura_nombre || '-'}</td>
-                <td className="px-4 py-3 text-[#a1a1aa]">{j.usuario_cierre_nombre || '-'}</td>
-                <td className="px-4 py-3 text-[#a1a1aa] capitalize">{j.estado}</td>
-                <td className="px-4 py-3 text-right font-semibold text-white">
+              <tr key={j.id} className="border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                <td className="px-4 py-3 text-[var(--text-primary)]">{formatearFechaHora(j.fecha_apertura)}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)]">{formatearFechaHora(j.fecha_cierre)}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)]">{j.usuario_apertura_nombre || '-'}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)]">{j.usuario_cierre_nombre || '-'}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)] capitalize">{j.estado}</td>
+                <td className="px-4 py-3 text-right font-semibold text-[var(--text-primary)]">
                   {formatearPrecio(j.ventas.total_ventas)}
                 </td>
                 <td
                   className={`px-4 py-3 text-right font-semibold ${
                     j.diferencia === null
-                      ? 'text-[#a1a1aa]'
+                      ? 'text-[var(--text-secondary)]'
                       : j.diferencia === 0
-                        ? 'text-green-400'
+                        ? 'text-[var(--success)]'
                         : j.diferencia > 0
-                          ? 'text-green-400'
-                          : 'text-red-400'
+                          ? 'text-[var(--success)]'
+                          : 'text-[var(--error)]'
                   }`}
                 >
                   {j.diferencia === null ? '-' : formatearPrecio(j.diferencia)}
@@ -483,7 +483,7 @@ function TabJornadas() {
                   <button
                     type="button"
                     onClick={() => setDetalle(j)}
-                    className="rounded-lg border border-[#333] px-3 py-1.5 text-xs font-medium text-[#a1a1aa] hover:text-white"
+                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     Ver detalle
                   </button>
@@ -492,7 +492,7 @@ function TabJornadas() {
             ))}
             {jornadas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[#a1a1aa]">
+                <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                   No hay jornadas registradas todavía.
                 </td>
               </tr>
@@ -505,53 +505,53 @@ function TabJornadas() {
         <Modal titulo={`Jornada del ${formatearFechaHora(detalle.fecha_apertura)}`} onClose={() => setDetalle(null)}>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Apertura</span>
-              <span className="text-white">{formatearFechaHora(detalle.fecha_apertura)}</span>
+              <span className="text-[var(--text-secondary)]">Apertura</span>
+              <span className="text-[var(--text-primary)]">{formatearFechaHora(detalle.fecha_apertura)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Cierre</span>
-              <span className="text-white">{formatearFechaHora(detalle.fecha_cierre)}</span>
+              <span className="text-[var(--text-secondary)]">Cierre</span>
+              <span className="text-[var(--text-primary)]">{formatearFechaHora(detalle.fecha_cierre)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Monto apertura</span>
-              <span className="text-white">{formatearPrecio(detalle.monto_apertura)}</span>
+              <span className="text-[var(--text-secondary)]">Monto apertura</span>
+              <span className="text-[var(--text-primary)]">{formatearPrecio(detalle.monto_apertura)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Total vendido</span>
-              <span className="text-white">{formatearPrecio(detalle.ventas.total_ventas)}</span>
+              <span className="text-[var(--text-secondary)]">Total vendido</span>
+              <span className="text-[var(--text-primary)]">{formatearPrecio(detalle.ventas.total_ventas)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Pedidos</span>
-              <span className="text-white">{detalle.ventas.cantidad_pedidos}</span>
+              <span className="text-[var(--text-secondary)]">Pedidos</span>
+              <span className="text-[var(--text-primary)]">{detalle.ventas.cantidad_pedidos}</span>
             </div>
-            <div className="border-t border-[#2a2a2a] pt-3">
-              <p className="mb-2 text-xs uppercase tracking-wide text-[#a1a1aa]">Métodos de pago</p>
+            <div className="border-t border-[var(--border)] pt-3">
+              <p className="mb-2 text-xs uppercase tracking-wide text-[var(--text-secondary)]">Métodos de pago</p>
               {detalle.ventas.por_metodo_pago.map((m) => (
-                <div key={m.metodo} className="flex justify-between text-[#a1a1aa]">
+                <div key={m.metodo} className="flex justify-between text-[var(--text-secondary)]">
                   <span>{LABEL_METODO_PAGO[m.metodo] || m.metodo}</span>
                   <span>{formatearPrecio(m.total)}</span>
                 </div>
               ))}
-              {detalle.ventas.por_metodo_pago.length === 0 && <p className="text-[#a1a1aa]">Sin ventas</p>}
+              {detalle.ventas.por_metodo_pago.length === 0 && <p className="text-[var(--text-secondary)]">Sin ventas</p>}
             </div>
-            <div className="flex justify-between border-t border-[#2a2a2a] pt-3">
-              <span className="text-[#a1a1aa]">Efectivo esperado</span>
-              <span className="text-white">{formatearPrecio(detalle.monto_cierre_esperado ?? detalle.ventas.monto_esperado_caja)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Efectivo contado</span>
-              <span className="text-white">{detalle.monto_cierre_real !== null ? formatearPrecio(detalle.monto_cierre_real) : '-'}</span>
+            <div className="flex justify-between border-t border-[var(--border)] pt-3">
+              <span className="text-[var(--text-secondary)]">Efectivo esperado</span>
+              <span className="text-[var(--text-primary)]">{formatearPrecio(detalle.monto_cierre_esperado ?? detalle.ventas.monto_esperado_caja)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#a1a1aa]">Diferencia</span>
-              <span className={detalle.diferencia > 0 ? 'text-green-400' : detalle.diferencia < 0 ? 'text-red-400' : 'text-white'}>
+              <span className="text-[var(--text-secondary)]">Efectivo contado</span>
+              <span className="text-[var(--text-primary)]">{detalle.monto_cierre_real !== null ? formatearPrecio(detalle.monto_cierre_real) : '-'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Diferencia</span>
+              <span className={detalle.diferencia > 0 ? 'text-[var(--success)]' : detalle.diferencia < 0 ? 'text-[var(--error)]' : 'text-[var(--text-primary)]'}>
                 {detalle.diferencia === null ? '-' : formatearPrecio(detalle.diferencia)}
               </span>
             </div>
             {detalle.notas && (
-              <div className="border-t border-[#2a2a2a] pt-3">
-                <p className="text-xs uppercase tracking-wide text-[#a1a1aa]">Notas</p>
-                <p className="mt-1 text-white">{detalle.notas}</p>
+              <div className="border-t border-[var(--border)] pt-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--text-secondary)]">Notas</p>
+                <p className="mt-1 text-[var(--text-primary)]">{detalle.notas}</p>
               </div>
             )}
           </div>
@@ -560,7 +560,7 @@ function TabJornadas() {
             <button
               type="button"
               onClick={() => handleReabrir(detalle)}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-[#f97316] px-4 py-2 text-sm font-semibold text-[#f97316] hover:bg-[#f97316]/10"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/10"
             >
               <RotateCcw size={16} />
               Reabrir jornada

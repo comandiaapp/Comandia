@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 
@@ -12,6 +12,9 @@ const PLAN_LABELS = {
   profesional: 'Profesional',
   empresarial: 'Empresarial',
 };
+
+const INTERVALO_POLLING_MS = 3000;
+const MAX_INTENTOS_POLLING = 10; // 10 x 3s = 30s de espera máxima
 
 function Tarjeta({ children }) {
   return (
@@ -40,23 +43,43 @@ function PagoExitoso() {
   const [cargando, setCargando] = useState(true);
   const [pago, setPago] = useState(null);
   const [error, setError] = useState(null);
+  const intentosRef = useRef(0);
 
   useEffect(() => {
+    let cancelado = false;
+    let timeoutId;
+
     async function verificar() {
       try {
         const params = Object.fromEntries(searchParams.entries());
         const datos = await verificarPago(params);
+        if (cancelado) return;
+
         setPago(datos.pago);
+        setCargando(false);
+
         if (datos.pago?.estado === 'aprobado') {
           await refrescarUsuario();
+          return;
+        }
+
+        if (datos.pago?.estado === 'pendiente' && intentosRef.current < MAX_INTENTOS_POLLING) {
+          intentosRef.current += 1;
+          timeoutId = setTimeout(verificar, INTERVALO_POLLING_MS);
         }
       } catch (err) {
+        if (cancelado) return;
         setError(err.response?.data?.mensaje || 'No se pudo verificar el pago');
-      } finally {
         setCargando(false);
       }
     }
+
     verificar();
+
+    return () => {
+      cancelado = true;
+      clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,11 +115,24 @@ function PagoExitoso() {
   }
 
   if (pago.estado === 'pendiente') {
+    if (intentosRef.current < MAX_INTENTOS_POLLING) {
+      return (
+        <Tarjeta>
+          <Spinner />
+          <h1 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
+            Verificando tu pago con Mercado Pago...
+          </h1>
+        </Tarjeta>
+      );
+    }
+
     return (
       <Tarjeta>
         <Clock className="mx-auto mb-4 text-[var(--warning)]" size={48} />
         <h1 className="text-lg font-semibold text-[var(--text-primary)]">Tu pago está siendo procesado</h1>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">Te notificaremos por email cuando se confirme.</p>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          Te notificaremos por email cuando se confirme.
+        </p>
         <BotonAccion to="/dashboard">Ir al dashboard</BotonAccion>
       </Tarjeta>
     );

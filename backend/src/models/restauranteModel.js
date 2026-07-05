@@ -118,6 +118,14 @@ async function activarPlan(restauranteId, plan) {
   return rows[0] || null;
 }
 
+async function actualizarEstadoSuscripcion(restauranteId, suscripcionActiva) {
+  const { rows } = await pool.query(
+    `UPDATE restaurantes SET suscripcion_activa = $1, updated_at = now() WHERE id = $2 RETURNING *`,
+    [suscripcionActiva, restauranteId]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   crear,
   buscarPorId,
@@ -125,4 +133,5 @@ module.exports = {
   obtenerConfiguracion,
   actualizarConfiguracion,
   activarPlan,
+  actualizarEstadoSuscripcion,
 };

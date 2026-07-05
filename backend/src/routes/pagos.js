@@ -1,9 +1,13 @@
 const express = require('express');
 
-const { iniciarPago, verificarPago, historialPagos, estadoSuscripcion } = require('../controllers/pagoController');
+const { iniciarPago, verificarPago, historialPagos, estadoSuscripcion, webhook } = require('../controllers/pagoController');
 const { verificarToken, verificarRol } = require('../middlewares/auth');
 
 const router = express.Router();
+
+// Lo llama Mercado Pago, no un usuario autenticado de Comandia: debe ir
+// antes del verificarToken de abajo, que aplica a todo lo demás en este router.
+router.post('/pagos/webhook', webhook);
 
 router.use(verificarToken);
 

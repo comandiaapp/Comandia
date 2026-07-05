@@ -2,8 +2,9 @@ const pagoModel = require('../models/pagoModel');
 const restauranteModel = require('../models/restauranteModel');
 const usuarioModel = require('../models/usuarioModel');
 const env = require('../config/env');
+const mercadopago = require('../utils/mercadopago');
 const { ok, error } = require('../utils/respuestas');
-const { enviarConfirmacionPago } = require('../utils/email');
+const { enviarConfirmacionPago, enviarAvisoSuscripcionInactiva } = require('../utils/email');
 
 const PLANES_VALIDOS = ['basico', 'profesional', 'empresarial'];
 
@@ -34,7 +35,7 @@ async function iniciarPago(req, res) {
 }
 
 async function verificarPago(req, res) {
-  const { collection_status, external_reference, payment_type } = req.query;
+  const { collection_id, external_reference } = req.query;
 
   if (!external_reference) {
     return error(res, 'Falta external_reference', 400);
@@ -47,30 +48,43 @@ async function verificarPago(req, res) {
     }
 
     // Si ya se procesó (reintento de la redirección, doble llamada del
-    // frontend) se devuelve el resultado ya guardado sin repetir efectos
-    // secundarios (activar el plan de nuevo, reenviar el email).
+    // frontend, o ya lo activó el webhook) se devuelve el resultado ya
+    // guardado sin repetir efectos secundarios.
     if (pago.estado !== 'pendiente') {
       const restaurante = await restauranteModel.buscarPorId(pago.restaurante_id);
       return ok(res, { pago, restaurante });
     }
 
-    if (collection_status === 'approved') {
-      const pagoActualizado = await pagoModel.marcarAprobado(pago.id, {
-        referenciaExterna: external_reference,
-        metodoPago: payment_type,
-      });
-      const restaurante = await restauranteModel.activarPlan(pago.restaurante_id, pago.plan);
-      const usuario = await usuarioModel.buscarPorId(req.usuario.userId);
-
-      enviarConfirmacionPago(usuario.email, usuario.nombre, pago.plan, pagoActualizado.periodo_fin).catch((err) => {
-        console.error('Error enviando email de confirmación de pago:', err.message || err);
-      });
-
-      return ok(res, { pago: pagoActualizado, restaurante });
+    // Sin collection_id todavía no hay nada que consultar en Mercado Pago;
+    // el webhook lo terminará de confirmar más adelante.
+    if (!collection_id) {
+      return ok(res, { pago });
     }
 
-    const nuevoEstado = collection_status === 'pending' ? 'pendiente' : 'rechazado';
-    const pagoActualizado = await pagoModel.marcarEstado(pago.id, nuevoEstado);
+    // El estado real del pago se confirma contra la API de Mercado Pago en
+    // vez de confiar en collection_status, que llega como query param y
+    // podría manipularse en la URL de redirección.
+    const payment = await mercadopago.obtenerPago(collection_id);
+
+    if (payment.status === 'approved') {
+      const resultado = await pagoModel.aprobarYActivarPlan(pago.id, {
+        referenciaExterna: String(payment.id),
+        metodoPago: payment.payment_type_id,
+      });
+
+      if (!resultado.yaProcesado) {
+        const usuario = await usuarioModel.buscarPorId(req.usuario.userId);
+        enviarConfirmacionPago(usuario.email, usuario.nombre, resultado.pago.plan, resultado.pago.periodo_fin).catch(
+          (err) => console.error('Error enviando email de confirmación de pago:', err.message || err)
+        );
+      }
+
+      const restaurante = resultado.restaurante || (await restauranteModel.buscarPorId(pago.restaurante_id));
+      return ok(res, { pago: resultado.pago, restaurante });
+    }
+
+    const nuevoEstado = payment.status === 'pending' || payment.status === 'in_process' ? 'pendiente' : 'rechazado';
+    const pagoActualizado = nuevoEstado === pago.estado ? pago : await pagoModel.marcarEstado(pago.id, nuevoEstado);
 
     return ok(res, { pago: pagoActualizado });
   } catch (err) {
@@ -112,4 +126,79 @@ async function estadoSuscripcion(req, res) {
   }
 }
 
-module.exports = { iniciarPago, verificarPago, historialPagos, estadoSuscripcion };
+async function procesarNotificacionPago(paymentId) {
+  const payment = await mercadopago.obtenerPago(paymentId);
+
+  if (!payment || payment.status !== 'approved') return;
+
+  const pagoId = payment.external_reference;
+  if (!pagoId) return;
+
+  const resultado = await pagoModel.aprobarYActivarPlan(pagoId, {
+    referenciaExterna: String(payment.id),
+    metodoPago: payment.payment_type_id,
+  });
+
+  // yaProcesado: el pago ya no estaba 'pendiente' (lo activó verificarPago
+  // o una notificación anterior del propio webhook) — no repetir el email.
+  if (resultado.yaProcesado || !resultado.restaurante) return;
+
+  await enviarConfirmacionPago(
+    resultado.restaurante.email,
+    resultado.restaurante.nombre,
+    resultado.pago.plan,
+    resultado.pago.periodo_fin
+  );
+}
+
+async function procesarNotificacionSuscripcion(preapprovalId) {
+  const preapproval = await mercadopago.obtenerPreapproval(preapprovalId);
+  const restauranteId = preapproval?.external_reference;
+  if (!restauranteId) return;
+
+  const restaurante = await restauranteModel.buscarPorId(restauranteId);
+  if (!restaurante) return;
+
+  if (preapproval.status === 'authorized') {
+    if (restaurante.suscripcion_activa) return;
+
+    const planDetectado = PLANES_VALIDOS.find((plan) => (preapproval.reason || '').toLowerCase().includes(plan));
+    const plan = planDetectado || restaurante.suscripcion_plan;
+    const restauranteActualizado = await restauranteModel.activarPlan(restauranteId, plan);
+    const periodoFin = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await enviarConfirmacionPago(restauranteActualizado.email, restauranteActualizado.nombre, plan, periodoFin);
+    return;
+  }
+
+  if (preapproval.status === 'cancelled' || preapproval.status === 'paused') {
+    if (!restaurante.suscripcion_activa) return;
+
+    await restauranteModel.actualizarEstadoSuscripcion(restauranteId, false);
+    await enviarAvisoSuscripcionInactiva(restaurante.email, restaurante.nombre, preapproval.status);
+  }
+}
+
+// Mercado Pago espera un 200 inmediato; si tarda o responde error, reintenta
+// la notificación. Por eso se responde antes de procesar y nunca se
+// propaga un error al cliente HTTP.
+async function webhook(req, res) {
+  res.sendStatus(200);
+
+  const tipo = req.body?.type || req.query.type || req.query.topic;
+  const id = req.body?.data?.id || req.query.id || req.query['data.id'];
+
+  if (!id) return;
+
+  try {
+    if (tipo === 'payment') {
+      await procesarNotificacionPago(id);
+    } else if (tipo === 'subscription_preapproval') {
+      await procesarNotificacionSuscripcion(id);
+    }
+  } catch (err) {
+    console.error('Error procesando webhook de Mercado Pago:', err.message || err);
+  }
+}
+
+module.exports = { iniciarPago, verificarPago, historialPagos, estadoSuscripcion, webhook };

@@ -189,4 +189,36 @@ async function enviarConfirmacionPago(email, nombre, plan, fechaVencimiento) {
   });
 }
 
-module.exports = { enviarVerificacionEmail, enviarResetPassword, enviarBienvenida, enviarConfirmacionPago };
+async function enviarAvisoSuscripcionInactiva(email, nombre, motivo) {
+  const url = `${env.appUrl}/planes`;
+  const textoMotivo = motivo === 'paused' ? 'pausada' : 'cancelada';
+
+  const html = layout({
+    titulo: 'Tu suscripción en Comandia cambió de estado',
+    contenido: `
+      <h1 style="margin:0 0 16px; font-size:20px; color:#1A1A1A;">Hola ${nombre},</h1>
+      <p style="margin:0 0 8px; font-size:15px; line-height:1.6; color:#5A5A5A;">
+        Tu suscripción a Comandia fue <strong>${textoMotivo}</strong> en Mercado Pago.
+      </p>
+      <p style="margin:0 0 8px; font-size:15px; line-height:1.6; color:#5A5A5A;">
+        Mientras tanto, tu cuenta quedó sin un plan activo. Si fue un error o quieres reactivarla, puedes hacerlo desde la página de planes.
+      </p>
+      ${boton('Ver planes', url)}
+    `,
+  });
+
+  return resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: `Tu suscripción en Comandia fue ${textoMotivo}`,
+    html,
+  });
+}
+
+module.exports = {
+  enviarVerificacionEmail,
+  enviarResetPassword,
+  enviarBienvenida,
+  enviarConfirmacionPago,
+  enviarAvisoSuscripcionInactiva,
+};

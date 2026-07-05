@@ -15,15 +15,18 @@ import {
   Globe,
   Share2,
   AtSign,
+  Download,
 } from 'lucide-react';
 
 const NARANJA_GRADIENTE = 'linear-gradient(135deg, #FF6B00 0%, #F97316 55%, #FFAD60 100%)';
 const CREMA = '#FFFBF5';
+const EMAIL_CONTACTO = 'comandiaapp@gmail.com';
+const URL_DESCARGA_WINDOWS =
+  'https://github.com/comandiaapp/Comandia/releases/latest/download/Comandia_1.0.0_x64-setup.exe';
 
 const SECCIONES_NAV = [
   { id: 'funciones', label: 'Funciones' },
   { id: 'precios', label: 'Precios' },
-  { id: 'contacto', label: 'Contacto' },
 ];
 
 const DOLORES = [
@@ -250,9 +253,22 @@ function Navbar() {
               {seccion.label}
             </button>
           ))}
+          <a
+            href={`mailto:${EMAIL_CONTACTO}`}
+            className="text-sm font-medium text-[#5A5A5A] transition-colors hover:text-[#F97316]"
+          >
+            Contacto
+          </a>
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <a
+            href={URL_DESCARGA_WINDOWS}
+            className="flex items-center gap-1.5 rounded-lg border border-[#FFD0A0] px-4 py-2 text-sm font-semibold text-[#F97316] transition-colors hover:bg-[#FFF3E0]"
+          >
+            <Download size={16} />
+            Descargar
+          </a>
           <Link
             to="/login"
             className="rounded-lg border border-[#FFD0A0] px-4 py-2 text-sm font-semibold text-[#F97316] transition-colors hover:bg-[#FFF3E0]"
@@ -288,7 +304,20 @@ function Navbar() {
                 {seccion.label}
               </button>
             ))}
+            <a
+              href={`mailto:${EMAIL_CONTACTO}`}
+              className="py-1 text-left text-sm font-medium text-[#5A5A5A] hover:text-[#F97316]"
+            >
+              Contacto
+            </a>
             <hr className="border-[#FFE0C0]" />
+            <a
+              href={URL_DESCARGA_WINDOWS}
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#FFD0A0] px-4 py-2 text-center text-sm font-semibold text-[#F97316]"
+            >
+              <Download size={16} />
+              Descargar
+            </a>
             <Link
               to="/login"
               className="rounded-lg border border-[#FFD0A0] px-4 py-2 text-center text-sm font-semibold text-[#F97316]"
@@ -413,7 +442,14 @@ function Hero() {
             >
               Ver demo
             </button>
+            <a
+              href={URL_DESCARGA_WINDOWS}
+              className="w-full rounded-lg border-2 border-white/80 px-7 py-3 text-base font-semibold text-white transition-all hover:-translate-y-1 hover:bg-white/10 sm:w-auto"
+            >
+              ⬇️ Descargar para Windows
+            </a>
           </div>
+          <p className="mt-3 text-xs font-medium text-white/70">Windows 10+ • 64 bits • Gratis</p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm font-medium text-white/90">
             <span className="rounded-full border border-white/30 bg-white/20 px-4 py-1.5">⚡ Listo en 5 minutos</span>
@@ -691,9 +727,13 @@ function CtaFinal() {
           <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#F97316]/20 to-transparent group-hover:animate-shimmer" />
           <span className="relative">Crear cuenta gratis</span>
         </Link>
-        <p className="mt-5 text-sm text-white/80">
-          Sin tarjeta de crédito • Cancela cuando quieras • Soporte en español
-        </p>
+        <p className="mt-5 text-sm text-white/80">Cancela cuando quieras • Soporte en español</p>
+        <a
+          href={URL_DESCARGA_WINDOWS}
+          className="mt-3 inline-block text-sm font-semibold text-white underline decoration-white/50 underline-offset-4 transition-colors hover:text-white/90"
+        >
+          O descarga la app para Windows →
+        </a>
       </Reveal>
     </section>
   );
@@ -719,13 +759,13 @@ function Footer() {
               <button onClick={() => irASeccion('precios')} className="transition-colors hover:text-[#F97316]">
                 Precios
               </button>
-              <button onClick={() => irASeccion('contacto')} className="transition-colors hover:text-[#F97316]">
+              <a href={`mailto:${EMAIL_CONTACTO}`} className="transition-colors hover:text-[#F97316]">
                 Contacto
-              </button>
-              <Link to="/login" className="transition-colors hover:text-[#F97316]">
+              </a>
+              <Link to="/terminos" className="transition-colors hover:text-[#F97316]">
                 Términos
               </Link>
-              <Link to="/login" className="transition-colors hover:text-[#F97316]">
+              <Link to="/privacidad" className="transition-colors hover:text-[#F97316]">
                 Privacidad
               </Link>
             </nav>
@@ -733,7 +773,9 @@ function Footer() {
             <div className="flex items-center gap-4 text-white/70">
               <Globe size={20} className="transition-colors hover:text-[#F97316]" />
               <Share2 size={20} className="transition-colors hover:text-[#F97316]" />
-              <AtSign size={20} className="transition-colors hover:text-[#F97316]" />
+              <a href={`mailto:${EMAIL_CONTACTO}`} aria-label="Enviar email" className="transition-colors hover:text-[#F97316]">
+                <AtSign size={20} />
+              </a>
             </div>
           </div>
 

@@ -6,6 +6,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import CocinaLayout from './components/CocinaLayout';
 import Landing from './pages/Landing';
+import Terminos from './pages/Terminos';
+import Privacidad from './pages/Privacidad';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import VerificarEmail from './pages/VerificarEmail';
@@ -65,6 +67,8 @@ function App() {
       />
       <Routes>
         <Route path="/" element={<Inicio />} />
+        <Route path="/terminos" element={<Terminos />} />
+        <Route path="/privacidad" element={<Privacidad />} />
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/verificar-email" element={<VerificarEmail />} />

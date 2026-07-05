@@ -259,7 +259,16 @@ function Registro() {
               onChange={(e) => setAceptaTerminos(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-[var(--input-border)] accent-[var(--accent)]"
             />
-            Acepto los términos y condiciones
+            Acepto los{' '}
+            <Link
+              to="/terminos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[var(--accent)] hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              términos y condiciones
+            </Link>
           </label>
 
           <button

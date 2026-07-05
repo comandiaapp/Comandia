@@ -107,4 +107,22 @@ async function actualizarConfiguracion(restauranteId, datos) {
   return rows[0] || null;
 }
 
-module.exports = { crear, buscarPorId, buscarPorEmail, obtenerConfiguracion, actualizarConfiguracion };
+async function activarPlan(restauranteId, plan) {
+  const { rows } = await pool.query(
+    `UPDATE restaurantes
+     SET suscripcion_plan = $1, suscripcion_activa = true, trial_expira = NULL, updated_at = now()
+     WHERE id = $2
+     RETURNING *`,
+    [plan, restauranteId]
+  );
+  return rows[0] || null;
+}
+
+module.exports = {
+  crear,
+  buscarPorId,
+  buscarPorEmail,
+  obtenerConfiguracion,
+  actualizarConfiguracion,
+  activarPlan,
+};

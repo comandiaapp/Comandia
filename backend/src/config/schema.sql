@@ -559,3 +559,27 @@ ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_suscripcion_plan_check
 -- 'descuento') a aplicar cuando exista pasarela de pago.
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS codigo_acceso_usado VARCHAR(20);
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS descuento_porcentaje INTEGER;
+
+-- Pagos de suscripción mensual vía links de pago de Mercado Pago (fase 1,
+-- sin integración con su API). external_reference en el link de pago apunta
+-- a pagos.id, lo que permite rastrear el pago hasta el restaurante al volver
+-- de la pasarela.
+CREATE TABLE IF NOT EXISTS pagos (
+  id UUID PRIMARY KEY,
+  restaurante_id UUID NOT NULL REFERENCES restaurantes(id) ON DELETE CASCADE,
+  plan VARCHAR(20) NOT NULL
+    CHECK (plan IN ('basico', 'profesional', 'empresarial')),
+  monto DECIMAL(12,2) NOT NULL,
+  moneda VARCHAR(10) NOT NULL DEFAULT 'COP',
+  estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'
+    CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'cancelado')),
+  referencia_externa VARCHAR(255),
+  metodo_pago VARCHAR(50),
+  fecha_pago TIMESTAMPTZ,
+  periodo_inicio DATE,
+  periodo_fin DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pagos_restaurante_id ON pagos(restaurante_id);
+CREATE INDEX IF NOT EXISTS idx_pagos_estado ON pagos(estado);

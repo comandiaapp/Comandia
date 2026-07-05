@@ -14,5 +14,6 @@ router.use('/', require('./contaduria'));
 router.use('/', require('./compras'));
 router.use('/', require('./configuracion'));
 router.use('/', require('./facturas'));
+router.use('/', require('./pagos'));
 
 module.exports = router;

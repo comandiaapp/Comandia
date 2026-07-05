@@ -21,6 +21,9 @@ import Inventario from './pages/Inventario';
 import Compras from './pages/Compras';
 import Contaduria from './pages/Contaduria';
 import Configuracion from './pages/Configuracion';
+import Planes from './pages/Planes';
+import PagoExitoso from './pages/PagoExitoso';
+import PagoFallido from './pages/PagoFallido';
 import NotFound from './pages/NotFound';
 
 function Inicio() {
@@ -147,6 +150,30 @@ function App() {
             <ConLayout>
               <Configuracion />
             </ConLayout>
+          }
+        />
+        <Route
+          path="/planes"
+          element={
+            <ConLayout>
+              <Planes />
+            </ConLayout>
+          }
+        />
+        <Route
+          path="/pago-exitoso"
+          element={
+            <ProtectedRoute>
+              <PagoExitoso />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pago-fallido"
+          element={
+            <ProtectedRoute>
+              <PagoFallido />
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<NotFound />} />

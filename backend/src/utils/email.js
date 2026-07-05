@@ -149,4 +149,44 @@ async function enviarBienvenida(email, nombre, restaurante, trialExpira) {
   });
 }
 
-module.exports = { enviarVerificacionEmail, enviarResetPassword, enviarBienvenida };
+const PLAN_LABELS = {
+  basico: 'Básico',
+  profesional: 'Profesional',
+  empresarial: 'Empresarial',
+};
+
+async function enviarConfirmacionPago(email, nombre, plan, fechaVencimiento) {
+  const url = `${env.appUrl}/dashboard`;
+  const planLabel = PLAN_LABELS[plan] || plan;
+
+  const opcionesFecha = { day: 'numeric', month: 'long', year: 'numeric' };
+  const fecha = new Date(fechaVencimiento).toLocaleDateString('es-CO', opcionesFecha);
+  const proximoCobroMs = new Date(fechaVencimiento).getTime() + 30 * 24 * 60 * 60 * 1000;
+  const proximoCobro = new Date(proximoCobroMs).toLocaleDateString('es-CO', opcionesFecha);
+
+  const html = layout({
+    titulo: `Pago confirmado — Plan ${planLabel} activado`,
+    contenido: `
+      <h1 style="margin:0 0 16px; font-size:20px; color:#1A1A1A;">¡Gracias por tu pago, ${nombre}!</h1>
+      <p style="margin:0 0 8px; font-size:15px; line-height:1.6; color:#5A5A5A;">
+        Tu plan <strong>${planLabel}</strong> está activo en Comandia.
+      </p>
+      <p style="margin:0 0 8px; font-size:15px; line-height:1.6; color:#5A5A5A;">
+        Válido hasta: <strong>${fecha}</strong>
+      </p>
+      <p style="margin:0 0 8px; font-size:15px; line-height:1.6; color:#5A5A5A;">
+        Próximo cobro: <strong>${proximoCobro}</strong>
+      </p>
+      ${boton('Ir a Comandia', url)}
+    `,
+  });
+
+  return resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: `✅ Pago confirmado — Plan ${planLabel} activado`,
+    html,
+  });
+}
+
+module.exports = { enviarVerificacionEmail, enviarResetPassword, enviarBienvenida, enviarConfirmacionPago };

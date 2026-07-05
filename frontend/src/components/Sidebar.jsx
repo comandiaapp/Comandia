@@ -11,6 +11,7 @@ import {
   BarChart3,
   BookOpen,
   Settings,
+  CreditCard,
   LogOut,
   Menu as MenuIcon,
   X,
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { to: '/reportes', label: 'Reportes', icon: BarChart3 },
   { to: '/contaduria', label: 'Contaduría', icon: BookOpen, soloGestor: true },
   { to: '/configuracion', label: 'Configuración', icon: Settings },
+  { to: '/planes', label: 'Mi plan', icon: CreditCard, soloAdmin: true },
 ];
 
 function Sidebar() {
@@ -40,7 +42,10 @@ function Sidebar() {
   const { usuario, restaurante, logout } = useAuth();
   const { tema, setTema } = useTheme();
   const esGestor = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
-  const itemsVisibles = NAV_ITEMS.filter((item) => !item.soloGestor || esGestor);
+  const esAdmin = usuario?.rol === 'admin';
+  const itemsVisibles = NAV_ITEMS.filter(
+    (item) => (!item.soloGestor || esGestor) && (!item.soloAdmin || esAdmin)
+  );
 
   return (
     <>

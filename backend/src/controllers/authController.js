@@ -153,8 +153,8 @@ async function registro(req, res) {
       rol: usuario.rol,
     });
 
-    // El envío de correos no debe tumbar el registro si Resend falla o no
-    // está configurado (p. ej. en desarrollo sin RESEND_API_KEY).
+    // El envío de correos no debe tumbar el registro si Gmail falla o no
+    // está configurado (p. ej. en desarrollo sin GMAIL_APP_PASSWORD).
     enviarVerificacionEmail(usuario.email, usuario.nombre, tokenVerificacion).catch((err) => {
       console.error('Error enviando email de verificación:', err.message || err);
     });

@@ -1,10 +1,16 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 const env = require('../config/env');
 
-const resend = new Resend(env.resendApiKey);
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: env.gmailUser,
+    pass: env.gmailAppPassword,
+  },
+});
 
-const FROM = 'Comandia <onboarding@resend.dev>';
+const FROM = 'Comandia <comandiaapp@gmail.com>';
 
 function layout({ titulo, contenido }) {
   return `
@@ -77,7 +83,7 @@ async function enviarVerificacionEmail(email, nombre, token) {
     `,
   });
 
-  return resend.emails.send({
+  return transporter.sendMail({
     from: FROM,
     to: email,
     subject: 'Verifica tu cuenta en Comandia',
@@ -105,7 +111,7 @@ async function enviarResetPassword(email, nombre, token) {
     `,
   });
 
-  return resend.emails.send({
+  return transporter.sendMail({
     from: FROM,
     to: email,
     subject: 'Recupera tu contraseña de Comandia',
@@ -141,7 +147,7 @@ async function enviarBienvenida(email, nombre, restaurante, trialExpira) {
     `,
   });
 
-  return resend.emails.send({
+  return transporter.sendMail({
     from: FROM,
     to: email,
     subject: '¡Bienvenido a Comandia! Tu trial de 14 días ha comenzado',
@@ -181,7 +187,7 @@ async function enviarConfirmacionPago(email, nombre, plan, fechaVencimiento) {
     `,
   });
 
-  return resend.emails.send({
+  return transporter.sendMail({
     from: FROM,
     to: email,
     subject: `✅ Pago confirmado — Plan ${planLabel} activado`,
@@ -207,7 +213,7 @@ async function enviarAvisoSuscripcionInactiva(email, nombre, motivo) {
     `,
   });
 
-  return resend.emails.send({
+  return transporter.sendMail({
     from: FROM,
     to: email,
     subject: `Tu suscripción en Comandia fue ${textoMotivo}`,

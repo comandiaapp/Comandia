@@ -52,20 +52,19 @@ function BannerTrial({ dias }) {
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-center gap-2 px-4 py-2 text-center text-sm font-medium text-white ${
+      className={`flex flex-col items-center gap-1 px-4 py-2 text-center text-sm font-medium text-white ${
         urgente ? 'bg-[var(--error)]' : 'bg-[var(--warning)]'
       }`}
     >
-      {urgente ? <AlertTriangle size={16} /> : <Clock size={16} />}
-      <span>
-        {urgente
-          ? dias === 1
-            ? 'Tu prueba termina mañana'
-            : `Tu prueba termina en ${dias} días`
-          : `Tu prueba termina en ${dias} días`}
-      </span>
-      <Link to="/planes" className="underline decoration-2 underline-offset-2 hover:opacity-80">
-        {urgente ? 'Elige tu plan ahora' : 'Ver planes'}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {urgente ? <AlertTriangle size={16} /> : <Clock size={16} />}
+        <span>{dias === 1 ? 'Tu prueba termina mañana' : `Tu prueba termina en ${dias} días`}</span>
+        <Link to="/planes" className="underline decoration-2 underline-offset-2 hover:opacity-80">
+          Activar plan ahora
+        </Link>
+      </div>
+      <Link to="/planes" className="text-xs text-white/85 underline decoration-1 underline-offset-2 hover:opacity-80">
+        ¿Prefieres pagar ahora? Activa tu plan y olvídate del contador
       </Link>
     </div>
   );

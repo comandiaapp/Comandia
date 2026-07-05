@@ -8,6 +8,7 @@ const env = {
   resendApiKey: process.env.RESEND_API_KEY,
   appUrl: process.env.APP_URL || 'http://localhost:5173',
   mpAccessToken: process.env.MP_ACCESS_TOKEN,
+  mpWebhookSecret: process.env.MP_WEBHOOK_SECRET,
 };
 
 module.exports = env;

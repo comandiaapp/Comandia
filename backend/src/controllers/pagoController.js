@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const pagoModel = require('../models/pagoModel');
 const restauranteModel = require('../models/restauranteModel');
 const usuarioModel = require('../models/usuarioModel');
@@ -179,6 +181,44 @@ async function procesarNotificacionSuscripcion(preapprovalId) {
   }
 }
 
+// Valida el header x-signature ("ts=...,v1=...") contra el manifest que
+// Mercado Pago firma con la clave secreta del webhook. El id va en minúsculas
+// y se toma del query param data.id (el que va en la URL de la notificación),
+// no del body, porque así lo firma Mercado Pago del lado del servidor.
+function verificarFirmaWebhook(req, dataId) {
+  if (!env.mpWebhookSecret) {
+    console.error('MP_WEBHOOK_SECRET no configurado: se rechaza el webhook de Mercado Pago');
+    return false;
+  }
+
+  const encabezadoFirma = req.headers['x-signature'];
+  const requestId = req.headers['x-request-id'];
+
+  if (!encabezadoFirma) return false;
+
+  const partes = Object.fromEntries(
+    encabezadoFirma
+      .split(',')
+      .map((parte) => parte.split('='))
+      .map(([clave, valor]) => [clave?.trim(), valor?.trim()])
+  );
+
+  const { ts, v1: hashRecibido } = partes;
+  if (!ts || !hashRecibido) return false;
+
+  const idParaManifest = String(req.query['data.id'] ?? dataId ?? '').toLowerCase();
+  const manifest = `id:${idParaManifest};request-id:${requestId || ''};ts:${ts};`;
+
+  const hashCalculado = crypto.createHmac('sha256', env.mpWebhookSecret).update(manifest).digest('hex');
+
+  const bufferRecibido = Buffer.from(hashRecibido, 'hex');
+  const bufferCalculado = Buffer.from(hashCalculado, 'hex');
+
+  if (bufferRecibido.length !== bufferCalculado.length) return false;
+
+  return crypto.timingSafeEqual(bufferRecibido, bufferCalculado);
+}
+
 // Mercado Pago espera un 200 inmediato; si tarda o responde error, reintenta
 // la notificación. Por eso se responde antes de procesar y nunca se
 // propaga un error al cliente HTTP.
@@ -189,6 +229,10 @@ async function webhook(req, res) {
   const id = req.body?.data?.id || req.query.id || req.query['data.id'];
 
   if (!id) return;
+
+  // Firma inválida: no se revela el motivo al llamador (ya recibió 200),
+  // simplemente no se procesa la notificación.
+  if (!verificarFirmaWebhook(req, id)) return;
 
   try {
     if (tipo === 'payment') {

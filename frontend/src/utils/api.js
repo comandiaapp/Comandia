@@ -34,7 +34,12 @@ api.interceptors.response.use(
   async (error) => {
     const esLogin = error.config?.url?.includes('/auth/login');
 
-    if (error.response?.status === 401 && !esLogin) {
+    // Solo se fuerza el redirect si de verdad había sesión (token presente):
+    // eso es una sesión que expiró. Un 401 sin token nunca tuvo sesión que
+    // perder (ej. una sincronización de fondo que se disparó sin login) y
+    // redirigir igual reinicia toda la app en /login, que allí mismo puede
+    // volver a disparar la misma llamada — reload infinito.
+    if (error.response?.status === 401 && !esLogin && localStorage.getItem('token')) {
       localStorage.removeItem('token');
       window.location.href = '/login';
       return Promise.reject(error);

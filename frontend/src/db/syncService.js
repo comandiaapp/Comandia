@@ -43,8 +43,13 @@ class SyncService {
   // reconectar. Sin este guardia, ambas pasadas leen la misma fila de la
   // cola antes de que la primera la borre y la operación se duplica contra
   // el servidor (ej. un item de pedido creado dos veces).
+  // ConnectivityProvider vive por encima de AuthProvider (se monta en toda
+  // la app, incluida /login) así que esto se dispara igual sin sesión. Sin
+  // token no hay restaurante para el que pedir nada: todas las llamadas
+  // saldrían 401, y ese 401 dispara el redirect-a-/login del interceptor de
+  // api.js, que en /login provoca un recargado infinito.
   async sincronizarTodo() {
-    if (this.sincronizando) return;
+    if (this.sincronizando || !localStorage.getItem('token')) return;
     this.sincronizando = true;
     try {
       await localDb.init();

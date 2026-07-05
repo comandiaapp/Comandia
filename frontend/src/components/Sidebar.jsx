@@ -20,6 +20,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import EstadoConexion from './EstadoConexion';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: Home },
@@ -111,6 +112,8 @@ function Sidebar() {
         </nav>
 
         <div className="space-y-3 border-t border-[var(--border-sidebar)] px-4 py-4">
+          <EstadoConexion />
+
           <div className="flex items-center gap-2">
             <button
               type="button"

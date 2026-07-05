@@ -17,6 +17,7 @@ import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import VisorFactura from '../components/VisorFactura';
 import { useAuth } from '../context/AuthContext';
+import { useConnectivity } from '../context/ConnectivityContext';
 import { getMesa } from '../utils/mesas';
 import { getCategorias } from '../utils/categorias';
 import { getProductos } from '../utils/productos';
@@ -90,6 +91,7 @@ function tiempoTranscurrido(fechaIso) {
 
 function POS({ mesaId, onCerrar = () => {} }) {
   const { usuario } = useAuth();
+  const { online = true } = useConnectivity() || {};
   const puedeCancelar = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
 
   const [mesa, setMesa] = useState(null);
@@ -114,6 +116,13 @@ function POS({ mesaId, onCerrar = () => {} }) {
   const [propina, setPropina] = useState(0);
 
   useEffect(() => {
+    // React StrictMode monta el efecto dos veces en desarrollo; sin esta
+    // bandera, la instancia vieja puede resolver su fetch después de que el
+    // usuario ya agregó un producto y pisar el pedido con datos previos al
+    // agregado (mucho más visible offline, donde la escritura local es
+    // instantánea y casi siempre "gana" a un fetch de red en vuelo).
+    let cancelado = false;
+
     async function iniciar() {
       setCargando(true);
       try {
@@ -122,6 +131,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
           getCategorias(),
           getProductos({ disponible: true }),
         ]);
+        if (cancelado) return;
         setMesa(mesaData);
         setCategorias(categoriasData);
         setProductos(productosData);
@@ -140,6 +150,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
         if (!pedidoData || !ESTADOS_PEDIDO_ACTIVOS.includes(pedidoData.estado)) {
           pedidoData = await crearPedido({ mesa_id: mesaId, tipo: 'mesa' });
         }
+        if (cancelado) return;
 
         setPedido({ ...pedidoData, items: pedidoData.items || [] });
         setDescuentoValor(Number(pedidoData.descuento) || 0);
@@ -153,12 +164,16 @@ function POS({ mesaId, onCerrar = () => {} }) {
           setModalPrecuenta(true);
         }
       } catch {
-        toast.error('No se pudo cargar el pedido de esta mesa');
+        if (!cancelado) toast.error('No se pudo cargar el pedido de esta mesa');
       } finally {
-        setCargando(false);
+        if (!cancelado) setCargando(false);
       }
     }
     iniciar();
+
+    return () => {
+      cancelado = true;
+    };
   }, [mesaId]);
 
   async function handleAgregarProducto(producto, opciones = {}) {
@@ -394,6 +409,11 @@ function POS({ mesaId, onCerrar = () => {} }) {
               {LABEL_ESTADO_PEDIDO[pedido?.estado] || pedido?.estado}
             </span>
           </div>
+          {!online && (
+            <p className="mt-2 rounded-lg bg-[var(--error)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--error)]">
+              Modo offline — guardando localmente, se sincroniza al volver la conexión
+            </p>
+          )}
         </div>
 
         <div className="max-h-64 flex-1 overflow-y-auto p-4 md:max-h-none">

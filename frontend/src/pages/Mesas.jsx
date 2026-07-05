@@ -9,6 +9,7 @@ import Campo from '../components/Campo';
 import BotonesFormulario from '../components/BotonesFormulario';
 import POSDrawer from '../components/POSDrawer';
 import { useAuth } from '../context/AuthContext';
+import { useConnectivity } from '../context/ConnectivityContext';
 import {
   getPlano,
   getMesas,
@@ -129,6 +130,7 @@ function tienePosicionGuardada(mesa) {
 
 function Mesas() {
   const { usuario } = useAuth();
+  const { online = true } = useConnectivity() || {};
   const esGestor = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
 
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null);
@@ -446,7 +448,14 @@ function Mesas() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Mesas</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Mesas</h1>
+          {!online && (
+            <span className="rounded-full bg-[var(--error)]/10 px-2 py-1 text-xs font-semibold uppercase text-[var(--error)]">
+              Sin conexión
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-1">
@@ -476,7 +485,9 @@ function Mesas() {
             <button
               type="button"
               onClick={() => setVista('lista')}
-              className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              disabled={!online}
+              title={!online ? 'Gestionar mesas requiere conexión' : undefined}
+              className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Settings size={16} />
               Gestionar mesas
@@ -487,7 +498,9 @@ function Mesas() {
             <button
               type="button"
               onClick={() => setModoEdicion((valor) => !valor)}
-              className={`hidden items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium md:flex ${
+              disabled={!online}
+              title={!online ? 'Editar el plano requiere conexión' : undefined}
+              className={`hidden items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 md:flex ${
                 modoEdicion ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -661,6 +674,7 @@ function Mesas() {
                   mesa={mesa}
                   mostrarBadgeListo={debeMostrarBadgeListo(mesa, pedidosVistos)}
                   esGestor={esGestor}
+                  online={online}
                   onClick={() => handleClickMesa(mesa)}
                   onEliminar={handleEliminarMesaRemota}
                 />
@@ -669,8 +683,8 @@ function Mesas() {
               <button
                 type="button"
                 onClick={handleCrearMesaRemota}
-                disabled={creandoMesaRemota || mesasRemotas.length >= LIMITE_MESAS_REMOTAS}
-                title="Nueva mesa remota"
+                disabled={creandoMesaRemota || mesasRemotas.length >= LIMITE_MESAS_REMOTAS || !online}
+                title={!online ? 'Crear mesa remota requiere conexión' : 'Nueva mesa remota'}
                 className="flex aspect-square w-[167px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus size={24} />
@@ -691,7 +705,9 @@ function Mesas() {
               <button
                 type="button"
                 onClick={() => setModalAreas(true)}
-                className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                disabled={!online}
+                title={!online ? 'Gestionar áreas requiere conexión' : undefined}
+                className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Gestionar áreas
               </button>
@@ -700,7 +716,9 @@ function Mesas() {
               <button
                 type="button"
                 onClick={() => setModalMesaForm('nueva')}
-                className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+                disabled={!online}
+                title={!online ? 'Crear mesas requiere conexión' : undefined}
+                className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus size={16} />
                 Nueva mesa
@@ -747,8 +765,9 @@ function Mesas() {
                             <button
                               type="button"
                               onClick={() => setModalMesaForm(mesa)}
-                              className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
-                              title="Editar"
+                              disabled={!online}
+                              className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                              title={!online ? 'Editar requiere conexión' : 'Editar'}
                             >
                               <Pencil size={16} />
                             </button>
@@ -757,8 +776,9 @@ function Mesas() {
                             <button
                               type="button"
                               onClick={() => handleEliminarMesa(mesa)}
-                              className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400"
-                              title="Eliminar"
+                              disabled={!online}
+                              className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                              title={!online ? 'Eliminar requiere conexión' : 'Eliminar'}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -988,7 +1008,7 @@ function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
   );
 }
 
-function TarjetaMesaRemota({ mesa, mostrarBadgeListo, esGestor, onClick, onEliminar }) {
+function TarjetaMesaRemota({ mesa, mostrarBadgeListo, esGestor, online = true, onClick, onEliminar }) {
   const color = COLOR_ESTADO[mesa.estado] || '#6b7280';
   const conCuentaPedida = mesa.pedido_estado === 'cuenta_pedida';
 
@@ -1030,8 +1050,9 @@ function TarjetaMesaRemota({ mesa, mostrarBadgeListo, esGestor, onClick, onElimi
             e.stopPropagation();
             onEliminar(mesa);
           }}
-          title="Eliminar domicilio"
-          className="absolute -bottom-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-red-500 hover:text-red-400"
+          disabled={!online}
+          title={!online ? 'Eliminar requiere conexión' : 'Eliminar domicilio'}
+          className="absolute -bottom-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-red-500 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <X size={12} />
         </button>

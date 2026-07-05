@@ -9,7 +9,19 @@ const { notFound, errorHandler } = require('./src/middlewares/errorHandler');
 
 const app = express();
 
-app.use(helmet());
+// script-src necesita 'wasm-unsafe-eval' para que el frontend pueda
+// instanciar el WebAssembly de sql.js (modo offline); sin esto el CSP por
+// defecto de helmet bloquea la compilación del módulo en producción.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'script-src': ["'self'", "'wasm-unsafe-eval'"],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(express.json());
 

@@ -522,9 +522,10 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_hasta TIMESTAMPTZ;
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS trial_expira TIMESTAMPTZ;
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS suscripcion_activa BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS suscripcion_plan VARCHAR(20) NOT NULL DEFAULT 'trial';
-ALTER TABLE restaurantes DROP CONSTRAINT IF EXISTS restaurantes_suscripcion_plan_check;
-ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_suscripcion_plan_check
-  CHECK (suscripcion_plan IN ('trial', 'basico', 'profesional', 'empresarial'));
+-- El CHECK de suscripcion_plan se aplica más abajo, una vez agregado
+-- 'gratuito_vitalicio' a la lista de valores permitidos: aplicar aquí una
+-- versión anterior y más angosta del constraint rompe el re-run de esta
+-- migración idempotente en cuanto exista una fila con ese valor.
 
 CREATE INDEX IF NOT EXISTS idx_usuarios_token_verificacion ON usuarios(token_verificacion);
 CREATE INDEX IF NOT EXISTS idx_usuarios_token_reset_password ON usuarios(token_reset_password);
@@ -550,7 +551,16 @@ CREATE TABLE IF NOT EXISTS codigos_acceso (
 CREATE INDEX IF NOT EXISTS idx_codigos_acceso_codigo ON codigos_acceso(codigo);
 
 -- El plan 'gratuito_vitalicio' (código de acceso fundador) se agrega al
--- check existente de suscripcion_plan.
+-- check existente de suscripcion_plan. Se sanea cualquier valor fuera de
+-- la lista permitida antes de aplicar el constraint: como esta migración
+-- se re-ejecuta en cada init, sin este saneo un valor inválido que haya
+-- quedado en la tabla (de una versión previa del constraint, o cargado a
+-- mano) hace que el ALTER falle en cada corrida futura.
+UPDATE restaurantes
+SET suscripcion_plan = 'trial'
+WHERE suscripcion_plan IS NULL
+   OR suscripcion_plan NOT IN ('trial', 'basico', 'profesional', 'empresarial', 'gratuito_vitalicio');
+
 ALTER TABLE restaurantes DROP CONSTRAINT IF EXISTS restaurantes_suscripcion_plan_check;
 ALTER TABLE restaurantes ADD CONSTRAINT restaurantes_suscripcion_plan_check
   CHECK (suscripcion_plan IN ('trial', 'basico', 'profesional', 'empresarial', 'gratuito_vitalicio'));

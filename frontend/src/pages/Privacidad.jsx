@@ -59,7 +59,7 @@ function Privacidad() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Mercado Pago, para el procesamiento de pagos.</li>
           <li>Railway, como proveedor de infraestructura en la nube.</li>
-          <li>Gmail (Google), para el envío de correos electrónicos del servicio.</li>
+          <li>Brevo, para el envío de correos electrónicos del servicio.</li>
         </ul>
         <p>No vendemos ni cedemos tus datos a terceros con fines comerciales.</p>
       </Seccion>

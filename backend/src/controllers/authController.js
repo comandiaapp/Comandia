@@ -153,8 +153,8 @@ async function registro(req, res) {
       rol: usuario.rol,
     });
 
-    // El envío de correos no debe tumbar el registro si Gmail falla o no
-    // está configurado (p. ej. en desarrollo sin GMAIL_APP_PASSWORD).
+    // El envío de correos no debe tumbar el registro si Brevo falla o no
+    // está configurado (p. ej. en desarrollo sin BREVO_SMTP_KEY).
     enviarVerificacionEmail(usuario.email, usuario.nombre, tokenVerificacion).catch((err) => {
       console.error('Error enviando email de verificación:', err.message || err);
     });

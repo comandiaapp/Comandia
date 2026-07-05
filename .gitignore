@@ -1,6 +1,7 @@
 # Variables de entorno (NUNCA subir a GitHub)
 .env
 .env.local
+.env.development
 .env.production
 .env*.local
 

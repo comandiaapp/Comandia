@@ -5,8 +5,9 @@ import { Search } from 'lucide-react';
 import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import VisorFactura from '../components/VisorFactura';
+import { useAuth } from '../context/AuthContext';
 import { formatearPrecio } from '../utils/formato';
-import { getPedidos, getPedido } from '../utils/pedidos';
+import { getPedidos, getPedido, cancelarPedido } from '../utils/pedidos';
 import { generarFactura, obtenerFacturaPorPedido } from '../utils/facturas';
 import { formatearHora, fechaHoyBogota } from '../utils/fecha';
 
@@ -66,6 +67,10 @@ const FILTROS_TIPO = [
 
 function hoyISO() {
   return fechaHoyBogota();
+}
+
+function numeroPedido(pedido) {
+  return pedido.numero_jornada > 0 ? pedido.numero_jornada : pedido.numero_global;
 }
 
 function formatearFechaHora(fechaIso) {
@@ -215,8 +220,7 @@ function Pedidos() {
                 {pedidosFiltrados.map((p) => (
                   <tr key={p.id} className="border-t border-[var(--border)] bg-[var(--bg-card)]">
                     <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
-                      #{String(p.numero_jornada).padStart(2, '0')}
-                      <span className="ml-1 font-normal text-[var(--text-secondary)]">(Global: #{p.numero_global})</span>
+                      #{String(numeroPedido(p)).padStart(2, '0')}
                     </td>
                     <td className="px-4 py-3 text-[var(--text-primary)]">{p.mesa_numero || LABEL_TIPO[p.tipo] || p.tipo}</td>
                     <td className="px-4 py-3 text-[var(--text-secondary)]">{formatearHora(p.created_at)}</td>
@@ -264,7 +268,11 @@ function Pedidos() {
       )}
 
       {pedidoDetalleId && (
-        <ModalDetallePedido pedidoId={pedidoDetalleId} onClose={() => setPedidoDetalleId(null)} />
+        <ModalDetallePedido
+          pedidoId={pedidoDetalleId}
+          onClose={() => setPedidoDetalleId(null)}
+          onCambio={cargarPedidos}
+        />
       )}
     </div>
   );
@@ -298,11 +306,33 @@ function construirTimeline(pedido) {
   ];
 }
 
-function ModalDetallePedido({ pedidoId, onClose }) {
+function ModalDetallePedido({ pedidoId, onClose, onCambio }) {
+  const { usuario } = useAuth();
   const [pedido, setPedido] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [cargandoFactura, setCargandoFactura] = useState(false);
   const [htmlFactura, setHtmlFactura] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
+
+  const esGestor = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
+  const sinItems = (pedido?.items || []).length === 0;
+  const mostrarCancelar = pedido?.estado === 'abierto' && sinItems;
+  const mostrarForzarCierre = !sinItems && pedido?.mesa_estado === 'libre' && esGestor;
+
+  async function handleCancelar(mensajeConfirmacion) {
+    if (!window.confirm(mensajeConfirmacion)) return;
+    setCancelando(true);
+    try {
+      await cancelarPedido(pedidoId);
+      toast.success('Pedido cancelado');
+      onCambio?.();
+      onClose();
+    } catch {
+      toast.error('No se pudo cancelar el pedido');
+    } finally {
+      setCancelando(false);
+    }
+  }
 
   async function handleVerFactura() {
     setCargandoFactura(true);
@@ -341,11 +371,7 @@ function ModalDetallePedido({ pedidoId, onClose }) {
 
   return (
     <Modal
-      titulo={
-        pedido
-          ? `Pedido #${String(pedido.numero_jornada).padStart(2, '0')} (Global: #${pedido.numero_global})`
-          : 'Detalle del pedido'
-      }
+      titulo={pedido ? `Pedido #${String(numeroPedido(pedido)).padStart(2, '0')}` : 'Detalle del pedido'}
       onClose={onClose}
     >
       {cargando || !pedido ? (
@@ -364,6 +390,34 @@ function ModalDetallePedido({ pedidoId, onClose }) {
               {LABEL_ESTADO_PEDIDO[pedido.estado] || pedido.estado}
             </span>
           </div>
+
+          {(mostrarCancelar || mostrarForzarCierre) && (
+            <div
+              className="rounded-lg border p-3 text-sm"
+              style={{ borderColor: 'var(--warning)', backgroundColor: fondoConAlpha('var(--warning)') }}
+            >
+              <p className="text-[var(--text-secondary)]">
+                {mostrarCancelar
+                  ? 'Este pedido está abierto y no tiene productos.'
+                  : 'Este pedido tiene productos pero su mesa ya figura libre.'}
+              </p>
+              <button
+                type="button"
+                disabled={cancelando}
+                onClick={() =>
+                  handleCancelar(
+                    mostrarCancelar
+                      ? '¿Cancelar este pedido vacío?'
+                      : '¿Forzar el cierre de este pedido? Quedará cancelado y no admitirá más cambios.'
+                  )
+                }
+                className="mt-2 w-full rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ borderColor: 'var(--warning)', color: 'var(--warning)' }}
+              >
+                {cancelando ? 'Procesando...' : mostrarCancelar ? 'Cancelar pedido' : 'Forzar cierre'}
+              </button>
+            </div>
+          )}
 
           <div className="space-y-2">
             {construirTimeline(pedido).map((paso) => (

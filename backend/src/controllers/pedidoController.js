@@ -280,10 +280,23 @@ async function cobrar(req, res) {
 
 async function cancelar(req, res) {
   try {
-    const pedido = await pedidoModel.cancelar(req.params.id, req.usuario.restauranteId);
-    if (!pedido) {
+    const actual = await pedidoModel.obtenerPorId(req.params.id, req.usuario.restauranteId);
+    if (!actual) {
       return error(res, 'Pedido no encontrado', 404);
     }
+    if (actual.estado === 'pagado' || actual.estado === 'cancelado') {
+      return error(res, `El pedido está en estado '${actual.estado}' y no se puede cancelar`, 400);
+    }
+
+    // Cancelar un pedido con productos ya cargados (p. ej. para forzar el
+    // cierre de un pedido fantasma cuya mesa ya quedó libre) requiere más
+    // criterio que cancelar uno vacío, así que se restringe a admin/gerente.
+    const esGestor = ['admin', 'gerente'].includes(req.usuario.rol);
+    if (actual.items.length > 0 && !esGestor) {
+      return error(res, 'Solo un administrador o gerente puede cancelar un pedido con productos', 403);
+    }
+
+    const pedido = await pedidoModel.cancelar(req.params.id, req.usuario.restauranteId);
     return ok(res, { pedido });
   } catch (err) {
     console.error('Error al cancelar el pedido:', err);

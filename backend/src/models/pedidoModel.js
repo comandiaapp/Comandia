@@ -144,7 +144,7 @@ async function obtenerPorMesa(mesaId, restauranteId) {
 
 async function obtenerPorId(id, restauranteId) {
   const { rows } = await pool.query(
-    `SELECT p.*, m.numero AS mesa_numero
+    `SELECT p.*, m.numero AS mesa_numero, m.estado AS mesa_estado
      FROM pedidos p
      LEFT JOIN mesas m ON m.id = p.mesa_id
      WHERE p.id = $1 AND p.restaurante_id = $2`,

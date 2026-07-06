@@ -56,6 +56,9 @@ router.post(
   reabrirCuenta
 );
 router.post('/pedidos/:id/cobrar', verificarRol('cajero', 'gerente', 'admin'), cobrar);
-router.post('/pedidos/:id/cancelar', verificarRol('gerente', 'admin'), cancelar);
+// El rol exacto requerido depende de si el pedido tiene productos o no; esa
+// distinción la hace el controlador, aquí solo se filtran los roles que
+// pueden intentarlo.
+router.post('/pedidos/:id/cancelar', verificarRol('mesero', 'cajero', 'gerente', 'admin'), cancelar);
 
 module.exports = router;

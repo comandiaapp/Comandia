@@ -14,7 +14,7 @@ export function ConnectivityProvider({ children }) {
 
   const actualizarResumen = useCallback(async () => {
     await localDb.init();
-    setResumen(syncService.resumen());
+    setResumen(await syncService.resumen());
   }, []);
 
   useEffect(() => {

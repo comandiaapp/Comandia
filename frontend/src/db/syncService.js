@@ -12,16 +12,16 @@ class SyncService {
   // conexión. Las lecturas nunca se encolan: se sirven directo desde cache.
   async encolar(tabla, operacion, datos) {
     await localDb.init();
-    localDb.ejecutar(
+    await localDb.ejecutar(
       `INSERT INTO sync_queue (id, tabla, operacion, datos) VALUES (?, ?, ?, ?)`,
       [uuidv4(), tabla, operacion, JSON.stringify(datos)]
     );
     await localDb.guardar();
   }
 
-  guardarMapeo(tipo, idLocal, idRemoto) {
+  async guardarMapeo(tipo, idLocal, idRemoto) {
     if (idLocal === idRemoto) return;
-    localDb.ejecutar(
+    await localDb.ejecutar(
       `INSERT OR REPLACE INTO id_map (tipo, id_local, id_remoto) VALUES (?, ?, ?)`,
       [tipo, idLocal, idRemoto]
     );
@@ -30,8 +30,8 @@ class SyncService {
   // Un id puede ser local (creado offline, todavía sin contraparte en el
   // servidor) o ya un id real. Si no hay mapeo registrado se asume que ya es
   // un id de servidor (p. ej. mesas, que nunca se crean offline).
-  resolverId(tipo, id) {
-    const fila = localDb.consultarUno(
+  async resolverId(tipo, id) {
+    const fila = await localDb.consultarUno(
       `SELECT id_remoto FROM id_map WHERE tipo = ? AND id_local = ?`,
       [tipo, id]
     );
@@ -66,7 +66,7 @@ class SyncService {
   // id local -> id remoto ya existe.
   async procesarCola() {
     await localDb.init();
-    const pendientes = localDb.consultar(
+    const pendientes = await localDb.consultar(
       `SELECT rowid AS rowid_, * FROM sync_queue WHERE intentos < ? ORDER BY rowid ASC`,
       [MAX_INTENTOS]
     );
@@ -74,9 +74,9 @@ class SyncService {
     for (const item of pendientes) {
       try {
         await this.procesarItem(item);
-        localDb.ejecutar(`DELETE FROM sync_queue WHERE rowid = ?`, [item.rowid_]);
+        await localDb.ejecutar(`DELETE FROM sync_queue WHERE rowid = ?`, [item.rowid_]);
       } catch (err) {
-        localDb.ejecutar(
+        await localDb.ejecutar(
           `UPDATE sync_queue SET intentos = intentos + 1, error = ? WHERE rowid = ?`,
           [err.response?.data?.mensaje || err.message || 'Error desconocido', item.rowid_]
         );
@@ -95,12 +95,12 @@ class SyncService {
           tipo: datos.tipo,
           notas: datos.notas,
         });
-        this.guardarMapeo('pedido', datos.id_local, data.datos.pedido.id);
-        localDb.ejecutar(`UPDATE pedidos_local SET sincronizado = 1 WHERE id = ?`, [datos.id_local]);
+        await this.guardarMapeo('pedido', datos.id_local, data.datos.pedido.id);
+        await localDb.ejecutar(`UPDATE pedidos_local SET sincronizado = 1 WHERE id = ?`, [datos.id_local]);
         return;
       }
 
-      const pedidoId = this.resolverId('pedido', datos.pedido_id_local);
+      const pedidoId = await this.resolverId('pedido', datos.pedido_id_local);
 
       if (item.operacion === 'enviar_cocina') {
         await api.post(`/api/pedidos/${pedidoId}/enviar-cocina`);
@@ -123,7 +123,7 @@ class SyncService {
     }
 
     if (item.tabla === 'pedido_items') {
-      const pedidoId = this.resolverId('pedido', datos.pedido_id_local);
+      const pedidoId = await this.resolverId('pedido', datos.pedido_id_local);
 
       if (item.operacion === 'crear') {
         const { data } = await api.post(`/api/pedidos/${pedidoId}/items`, {
@@ -134,11 +134,11 @@ class SyncService {
           notas: datos.notas,
           modificadores: datos.modificadores,
         });
-        this.guardarMapeo('pedido_item', datos.id_local, data.datos.item.id);
+        await this.guardarMapeo('pedido_item', datos.id_local, data.datos.item.id);
         return;
       }
 
-      const itemId = this.resolverId('pedido_item', datos.item_id_local);
+      const itemId = await this.resolverId('pedido_item', datos.item_id_local);
 
       if (item.operacion === 'actualizar') {
         await api.put(`/api/pedidos/${pedidoId}/items/${itemId}`, {
@@ -165,34 +165,37 @@ class SyncService {
         api.get('/api/areas'),
       ]);
 
-      localDb.ejecutar('DELETE FROM productos_cache');
+      await localDb.ejecutar('DELETE FROM productos_cache');
       for (const p of productos.data.datos.productos) {
-        localDb.ejecutar(`INSERT OR REPLACE INTO productos_cache (id, datos) VALUES (?, ?)`, [
+        await localDb.ejecutar(`INSERT OR REPLACE INTO productos_cache (id, datos) VALUES (?, ?)`, [
           p.id,
           JSON.stringify(p),
         ]);
       }
 
-      localDb.ejecutar('DELETE FROM categorias_cache');
+      await localDb.ejecutar('DELETE FROM categorias_cache');
       for (const c of categorias.data.datos.categorias) {
-        localDb.ejecutar(`INSERT OR REPLACE INTO categorias_cache (id, datos) VALUES (?, ?)`, [
+        await localDb.ejecutar(`INSERT OR REPLACE INTO categorias_cache (id, datos) VALUES (?, ?)`, [
           c.id,
           JSON.stringify(c),
         ]);
       }
 
-      localDb.ejecutar('DELETE FROM mesas_cache');
+      await localDb.ejecutar('DELETE FROM mesas_cache');
       for (const m of mesas.data.datos.mesas) {
-        localDb.ejecutar(`INSERT OR REPLACE INTO mesas_cache (id, area_id, datos) VALUES (?, ?, ?)`, [
+        await localDb.ejecutar(`INSERT OR REPLACE INTO mesas_cache (id, area_id, datos) VALUES (?, ?, ?)`, [
           m.id,
           m.area_id,
           JSON.stringify(m),
         ]);
       }
 
-      localDb.ejecutar('DELETE FROM areas_cache');
+      await localDb.ejecutar('DELETE FROM areas_cache');
       for (const a of areas.data.datos.areas) {
-        localDb.ejecutar(`INSERT OR REPLACE INTO areas_cache (id, datos) VALUES (?, ?)`, [a.id, JSON.stringify(a)]);
+        await localDb.ejecutar(`INSERT OR REPLACE INTO areas_cache (id, datos) VALUES (?, ?)`, [
+          a.id,
+          JSON.stringify(a),
+        ]);
       }
 
       await localDb.guardar();
@@ -201,11 +204,11 @@ class SyncService {
     }
   }
 
-  resumen() {
-    const pendientes = localDb.consultarUno(`SELECT COUNT(*) AS total FROM sync_queue WHERE intentos < ?`, [
+  async resumen() {
+    const pendientes = await localDb.consultarUno(`SELECT COUNT(*) AS total FROM sync_queue WHERE intentos < ?`, [
       MAX_INTENTOS,
     ]);
-    const conError = localDb.consultarUno(`SELECT COUNT(*) AS total FROM sync_queue WHERE intentos >= ?`, [
+    const conError = await localDb.consultarUno(`SELECT COUNT(*) AS total FROM sync_queue WHERE intentos >= ?`, [
       MAX_INTENTOS,
     ]);
     return {

@@ -12,7 +12,7 @@ export class OfflineApiError extends Error {
 }
 
 async function encolar(tabla, operacion, datos) {
-  localDb.ejecutar(`INSERT INTO sync_queue (id, tabla, operacion, datos) VALUES (?, ?, ?, ?)`, [
+  await localDb.ejecutar(`INSERT INTO sync_queue (id, tabla, operacion, datos) VALUES (?, ?, ?, ?)`, [
     uuidv4(),
     tabla,
     operacion,
@@ -20,25 +20,25 @@ async function encolar(tabla, operacion, datos) {
   ]);
 }
 
-function actualizarEstadoMesaCache(mesaId, estado, extra = {}) {
-  const fila = localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
+async function actualizarEstadoMesaCache(mesaId, estado, extra = {}) {
+  const fila = await localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
   if (!fila) return;
   const mesa = { ...JSON.parse(fila.datos), estado, ...extra };
-  localDb.ejecutar(`UPDATE mesas_cache SET datos = ? WHERE id = ?`, [JSON.stringify(mesa), mesaId]);
+  await localDb.ejecutar(`UPDATE mesas_cache SET datos = ? WHERE id = ?`, [JSON.stringify(mesa), mesaId]);
 }
 
-function upsertMesaCache(mesa) {
+async function upsertMesaCache(mesa) {
   if (!mesa?.id) return;
-  localDb.ejecutar(`INSERT OR REPLACE INTO mesas_cache (id, area_id, datos) VALUES (?, ?, ?)`, [
+  await localDb.ejecutar(`INSERT OR REPLACE INTO mesas_cache (id, area_id, datos) VALUES (?, ?, ?)`, [
     mesa.id,
     mesa.area_id ?? null,
     JSON.stringify(mesa),
   ]);
 }
 
-function upsertPedidoFila(pedido) {
+async function upsertPedidoFila(pedido) {
   const ahora = new Date().toISOString();
-  localDb.ejecutar(
+  await localDb.ejecutar(
     `INSERT OR REPLACE INTO pedidos_local
        (id, mesa_id, numero_jornada, tipo, estado, subtotal, total, descuento, impuesto, propina, notas, creado_offline, sincronizado, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
@@ -60,8 +60,8 @@ function upsertPedidoFila(pedido) {
   );
 }
 
-function upsertItemFila(item, pedidoId) {
-  localDb.ejecutar(
+async function upsertItemFila(item, pedidoId) {
+  await localDb.ejecutar(
     `INSERT OR REPLACE INTO pedido_items_local
        (id, pedido_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal, notas, modificadores, estado, creado_offline, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
@@ -120,22 +120,22 @@ export async function mirrorRespuestaExitosa(config, data) {
 
     if (ruta.tipo === 'plano' && Array.isArray(datos.plano)) {
       for (const area of datos.plano) {
-        for (const mesa of area.mesas || []) upsertMesaCache(mesa);
+        for (const mesa of area.mesas || []) await upsertMesaCache(mesa);
       }
     } else if (ruta.tipo === 'mesas_lista' && Array.isArray(datos.mesas)) {
-      for (const mesa of datos.mesas) upsertMesaCache(mesa);
+      for (const mesa of datos.mesas) await upsertMesaCache(mesa);
     } else if (ruta.tipo === 'mesa_una' && datos.mesa) {
-      upsertMesaCache(datos.mesa);
+      await upsertMesaCache(datos.mesa);
     } else if (datos.pedido) {
-      upsertPedidoFila(datos.pedido);
+      await upsertPedidoFila(datos.pedido);
 
       if (ruta.tipo === 'pedido_completo' && Array.isArray(datos.pedido.items)) {
-        localDb.ejecutar(`DELETE FROM pedido_items_local WHERE pedido_id = ?`, [datos.pedido.id]);
-        for (const item of datos.pedido.items) upsertItemFila(item, datos.pedido.id);
+        await localDb.ejecutar(`DELETE FROM pedido_items_local WHERE pedido_id = ?`, [datos.pedido.id]);
+        for (const item of datos.pedido.items) await upsertItemFila(item, datos.pedido.id);
       } else if (ruta.tipo === 'item_upsert' && datos.item) {
-        upsertItemFila(datos.item, datos.pedido.id);
+        await upsertItemFila(datos.item, datos.pedido.id);
       } else if (ruta.tipo === 'item_eliminar' && datos.item) {
-        localDb.ejecutar(`DELETE FROM pedido_items_local WHERE id = ?`, [datos.item.id]);
+        await localDb.ejecutar(`DELETE FROM pedido_items_local WHERE id = ?`, [datos.item.id]);
       }
     }
 
@@ -160,12 +160,14 @@ function filaAItem(fila) {
   };
 }
 
-function construirPedido(pedidoId) {
-  const p = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+async function construirPedido(pedidoId) {
+  const p = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   if (!p) return null;
-  const items = localDb
-    .consultar(`SELECT * FROM pedido_items_local WHERE pedido_id = ? ORDER BY created_at ASC`, [pedidoId])
-    .map(filaAItem);
+  const filas = await localDb.consultar(
+    `SELECT * FROM pedido_items_local WHERE pedido_id = ? ORDER BY created_at ASC`,
+    [pedidoId]
+  );
+  const items = filas.map(filaAItem);
 
   return {
     id: p.id,
@@ -187,15 +189,15 @@ function construirPedido(pedidoId) {
 
 // Espeja pedidoModel.recalcularTotales del backend para que el total mostrado
 // en el POS no cambie cuando la operación finalmente sincronice.
-function recalcularPedidoLocal(pedidoId) {
-  const suma = localDb.consultarUno(
+async function recalcularPedidoLocal(pedidoId) {
+  const suma = await localDb.consultarUno(
     `SELECT COALESCE(SUM(subtotal), 0) AS total FROM pedido_items_local WHERE pedido_id = ? AND estado != 'cancelado'`,
     [pedidoId]
   );
-  const pedido = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   const subtotal = Number(suma.total);
   const total = Math.max(0, subtotal - Number(pedido.descuento) + Number(pedido.impuesto) + Number(pedido.propina));
-  localDb.ejecutar(`UPDATE pedidos_local SET subtotal = ?, total = ?, updated_at = ? WHERE id = ?`, [
+  await localDb.ejecutar(`UPDATE pedidos_local SET subtotal = ?, total = ?, updated_at = ? WHERE id = ?`, [
     subtotal,
     total,
     new Date().toISOString(),
@@ -214,8 +216,9 @@ function pedidoActivoDeMesa(mesaId) {
 
 // --- Lecturas (mesas / productos / categorías / áreas) ---
 
-function hProductos(match, body, params) {
-  let productos = localDb.consultar(`SELECT datos FROM productos_cache`).map((f) => JSON.parse(f.datos));
+async function hProductos(match, body, params) {
+  const filas = await localDb.consultar(`SELECT datos FROM productos_cache`);
+  let productos = filas.map((f) => JSON.parse(f.datos));
   if (params.categoria_id !== undefined) productos = productos.filter((p) => p.categoria_id === params.categoria_id);
   if (params.disponible !== undefined) {
     const quiere = params.disponible === true || params.disponible === 'true';
@@ -228,32 +231,34 @@ function hProductos(match, body, params) {
   return { productos };
 }
 
-function hCategorias() {
-  return { categorias: localDb.consultar(`SELECT datos FROM categorias_cache`).map((f) => JSON.parse(f.datos)) };
+async function hCategorias() {
+  const filas = await localDb.consultar(`SELECT datos FROM categorias_cache`);
+  return { categorias: filas.map((f) => JSON.parse(f.datos)) };
 }
 
-function hAreas() {
-  return { areas: localDb.consultar(`SELECT datos FROM areas_cache`).map((f) => JSON.parse(f.datos)) };
+async function hAreas() {
+  const filas = await localDb.consultar(`SELECT datos FROM areas_cache`);
+  return { areas: filas.map((f) => JSON.parse(f.datos)) };
 }
 
-function hMesas(match, body, params) {
-  let mesas = localDb.consultar(`SELECT datos FROM mesas_cache`).map((f) => JSON.parse(f.datos));
+async function hMesas(match, body, params) {
+  const filas = await localDb.consultar(`SELECT datos FROM mesas_cache`);
+  let mesas = filas.map((f) => JSON.parse(f.datos));
   if (params.area_id) mesas = mesas.filter((m) => m.area_id === params.area_id);
   return { mesas };
 }
 
-function hMesa(match) {
-  const fila = localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [match[1]]);
+async function hMesa(match) {
+  const fila = await localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [match[1]]);
   if (!fila) throw new OfflineApiError('Mesa no encontrada');
   return { mesa: JSON.parse(fila.datos) };
 }
 
-function hPlano() {
-  const areas = localDb
-    .consultar(`SELECT datos FROM areas_cache`)
-    .map((f) => JSON.parse(f.datos))
-    .filter((a) => !a.es_remota);
-  const mesas = localDb.consultar(`SELECT datos FROM mesas_cache`).map((f) => JSON.parse(f.datos));
+async function hPlano() {
+  const filasAreas = await localDb.consultar(`SELECT datos FROM areas_cache`);
+  const areas = filasAreas.map((f) => JSON.parse(f.datos)).filter((a) => !a.es_remota);
+  const filasMesas = await localDb.consultar(`SELECT datos FROM mesas_cache`);
+  const mesas = filasMesas.map((f) => JSON.parse(f.datos));
   const plano = areas.map((area) => ({ ...area, mesas: mesas.filter((m) => m.area_id === area.id) }));
   const sinArea = mesas.filter((m) => !m.area_id);
   if (sinArea.length > 0) plano.push({ id: null, nombre: 'Sin área', mesas: sinArea });
@@ -263,46 +268,46 @@ function hPlano() {
 async function hCambiarEstadoMesa(match, body) {
   const mesaId = match[1];
   const { estado } = body;
-  const fila = localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
+  const fila = await localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
   if (!fila) throw new OfflineApiError('Mesa no encontrada');
-  actualizarEstadoMesaCache(mesaId, estado);
+  await actualizarEstadoMesaCache(mesaId, estado);
   await encolar('mesas', 'cambiar_estado', { mesa_id: mesaId, estado });
-  const actualizada = localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
+  const actualizada = await localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
   return { mesa: JSON.parse(actualizada.datos) };
 }
 
 // --- Pedidos ---
 
-function hLeerPedidoPorMesa(match) {
-  const pedido = pedidoActivoDeMesa(match[1]);
+async function hLeerPedidoPorMesa(match) {
+  const pedido = await pedidoActivoDeMesa(match[1]);
   if (!pedido) throw new OfflineApiError('No hay un pedido activo para esta mesa');
-  return { pedido: construirPedido(pedido.id) };
+  return { pedido: await construirPedido(pedido.id) };
 }
 
 async function hCrearPedido(match, body) {
   const { mesa_id, tipo, notas } = body;
 
   if (mesa_id) {
-    const existente = pedidoActivoDeMesa(mesa_id);
-    if (existente) return { pedido: construirPedido(existente.id) };
+    const existente = await pedidoActivoDeMesa(mesa_id);
+    if (existente) return { pedido: await construirPedido(existente.id) };
   }
 
   const id = uuidv4();
   const ahora = new Date().toISOString();
-  localDb.ejecutar(
+  await localDb.ejecutar(
     `INSERT INTO pedidos_local (id, mesa_id, tipo, estado, notas, creado_offline, created_at, updated_at)
      VALUES (?, ?, ?, 'abierto', ?, 1, ?, ?)`,
     [id, mesa_id ?? null, tipo || 'mesa', notas ?? null, ahora, ahora]
   );
-  if (mesa_id) actualizarEstadoMesaCache(mesa_id, 'ocupada');
+  if (mesa_id) await actualizarEstadoMesaCache(mesa_id, 'ocupada');
   await encolar('pedidos', 'crear', { id_local: id, mesa_id, tipo: tipo || 'mesa', notas });
 
-  return { pedido: construirPedido(id) };
+  return { pedido: await construirPedido(id) };
 }
 
 async function hAgregarItem(match, body) {
   const pedidoId = match[1];
-  const pedido = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   if (!pedido) throw new OfflineApiError('Pedido no encontrado');
   if (!ESTADOS_ACTIVOS.includes(pedido.estado)) {
     throw new OfflineApiError(`El pedido está en estado '${pedido.estado}' y ya no admite más productos`, 400);
@@ -319,7 +324,7 @@ async function hAgregarItem(match, body) {
   const precioMods = mods.reduce((suma, m) => suma + Number(m.precio_extra || 0), 0);
   const subtotal = (Number(precio_unitario) + precioMods) * cant;
 
-  localDb.ejecutar(
+  await localDb.ejecutar(
     `INSERT INTO pedido_items_local
        (id, pedido_id, producto_id, nombre_producto, precio_unitario, cantidad, subtotal, notas, modificadores, estado, creado_offline, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', 1, ?)`,
@@ -337,7 +342,7 @@ async function hAgregarItem(match, body) {
     ]
   );
 
-  const pedidoActualizado = recalcularPedidoLocal(pedidoId);
+  const pedidoActualizado = await recalcularPedidoLocal(pedidoId);
   await encolar('pedido_items', 'crear', {
     id_local: id,
     pedido_id_local: pedidoId,
@@ -349,13 +354,13 @@ async function hAgregarItem(match, body) {
     modificadores: mods,
   });
 
-  const itemFila = localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ?`, [id]);
+  const itemFila = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ?`, [id]);
   return { item: filaAItem(itemFila), pedido: pedidoActualizado };
 }
 
 async function hActualizarItem(match, body) {
   const [, pedidoId, itemId] = match;
-  const itemFila = localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ? AND pedido_id = ?`, [
+  const itemFila = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ? AND pedido_id = ?`, [
     itemId,
     pedidoId,
   ]);
@@ -367,14 +372,14 @@ async function hActualizarItem(match, body) {
   const precioMods = mods.reduce((suma, m) => suma + Number(m.precio_extra || 0), 0);
   const nuevoSubtotal = (Number(itemFila.precio_unitario) + precioMods) * nuevaCantidad;
 
-  localDb.ejecutar(`UPDATE pedido_items_local SET cantidad = ?, notas = ?, subtotal = ? WHERE id = ?`, [
+  await localDb.ejecutar(`UPDATE pedido_items_local SET cantidad = ?, notas = ?, subtotal = ? WHERE id = ?`, [
     nuevaCantidad,
     nuevasNotas,
     nuevoSubtotal,
     itemId,
   ]);
 
-  const pedidoActualizado = recalcularPedidoLocal(pedidoId);
+  const pedidoActualizado = await recalcularPedidoLocal(pedidoId);
   await encolar('pedido_items', 'actualizar', {
     pedido_id_local: pedidoId,
     item_id_local: itemId,
@@ -382,20 +387,20 @@ async function hActualizarItem(match, body) {
     notas: nuevasNotas,
   });
 
-  const actualizada = localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ?`, [itemId]);
+  const actualizada = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ?`, [itemId]);
   return { item: filaAItem(actualizada), pedido: pedidoActualizado };
 }
 
 async function hEliminarItem(match) {
   const [, pedidoId, itemId] = match;
-  const itemFila = localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ? AND pedido_id = ?`, [
+  const itemFila = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ? AND pedido_id = ?`, [
     itemId,
     pedidoId,
   ]);
   if (!itemFila) throw new OfflineApiError('Item no encontrado');
 
-  localDb.ejecutar(`DELETE FROM pedido_items_local WHERE id = ?`, [itemId]);
-  const pedidoActualizado = recalcularPedidoLocal(pedidoId);
+  await localDb.ejecutar(`DELETE FROM pedido_items_local WHERE id = ?`, [itemId]);
+  const pedidoActualizado = await recalcularPedidoLocal(pedidoId);
   await encolar('pedido_items', 'eliminar', { pedido_id_local: pedidoId, item_id_local: itemId });
 
   return { item: filaAItem(itemFila), pedido: pedidoActualizado };
@@ -403,58 +408,62 @@ async function hEliminarItem(match) {
 
 async function hEnviarCocina(match) {
   const pedidoId = match[1];
-  const pendientes = localDb.consultarUno(
+  const pendientes = await localDb.consultarUno(
     `SELECT COUNT(*) AS total FROM pedido_items_local WHERE pedido_id = ? AND estado = 'pendiente'`,
     [pedidoId]
   );
   if (!pendientes || pendientes.total === 0) {
     throw new OfflineApiError('No hay items nuevos para enviar a cocina', 400);
   }
-  localDb.ejecutar(`UPDATE pedido_items_local SET estado = 'en_preparacion' WHERE pedido_id = ? AND estado = 'pendiente'`, [
-    pedidoId,
-  ]);
-  localDb.ejecutar(`UPDATE pedidos_local SET estado = 'enviado_cocina', updated_at = ? WHERE id = ?`, [
+  await localDb.ejecutar(
+    `UPDATE pedido_items_local SET estado = 'en_preparacion' WHERE pedido_id = ? AND estado = 'pendiente'`,
+    [pedidoId]
+  );
+  await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'enviado_cocina', updated_at = ? WHERE id = ?`, [
     new Date().toISOString(),
     pedidoId,
   ]);
   await encolar('pedidos', 'enviar_cocina', { pedido_id_local: pedidoId });
 
-  return { pedido: construirPedido(pedidoId) };
+  return { pedido: await construirPedido(pedidoId) };
 }
 
 async function hPedirCuenta(match) {
   const pedidoId = match[1];
-  const pedido = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   if (!pedido) throw new OfflineApiError('Pedido no encontrado');
 
   const ahora = new Date().toISOString();
-  localDb.ejecutar(`UPDATE pedidos_local SET estado = 'cuenta_pedida', updated_at = ? WHERE id = ?`, [ahora, pedidoId]);
-  if (pedido.mesa_id) actualizarEstadoMesaCache(pedido.mesa_id, 'cuenta_pedida', { cuenta_pedida_at: ahora });
+  await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'cuenta_pedida', updated_at = ? WHERE id = ?`, [
+    ahora,
+    pedidoId,
+  ]);
+  if (pedido.mesa_id) await actualizarEstadoMesaCache(pedido.mesa_id, 'cuenta_pedida', { cuenta_pedida_at: ahora });
   await encolar('pedidos', 'pedir_cuenta', { pedido_id_local: pedidoId });
 
-  return { pedido: construirPedido(pedidoId) };
+  return { pedido: await construirPedido(pedidoId) };
 }
 
 async function hReabrirCuenta(match) {
   const pedidoId = match[1];
-  const pedido = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ? AND estado = 'cuenta_pedida'`, [
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ? AND estado = 'cuenta_pedida'`, [
     pedidoId,
   ]);
   if (!pedido) throw new OfflineApiError('El pedido no existe o no está en estado "cuenta pedida"');
 
-  localDb.ejecutar(`UPDATE pedidos_local SET estado = 'abierto', updated_at = ? WHERE id = ?`, [
+  await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'abierto', updated_at = ? WHERE id = ?`, [
     new Date().toISOString(),
     pedidoId,
   ]);
-  if (pedido.mesa_id) actualizarEstadoMesaCache(pedido.mesa_id, 'ocupada', { cuenta_pedida_at: null });
+  if (pedido.mesa_id) await actualizarEstadoMesaCache(pedido.mesa_id, 'ocupada', { cuenta_pedida_at: null });
   await encolar('pedidos', 'reabrir_cuenta', { pedido_id_local: pedidoId });
 
-  return { pedido: construirPedido(pedidoId) };
+  return { pedido: await construirPedido(pedidoId) };
 }
 
 async function hCobrar(match, body) {
   const pedidoId = match[1];
-  const pedido = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   if (!pedido) throw new OfflineApiError('Pedido no encontrado');
 
   const { pagado_con, monto_recibido, descuento, impuesto, propina } = body;
@@ -467,11 +476,11 @@ async function hCobrar(match, body) {
     throw new OfflineApiError(`Falta ${(total - recibido).toFixed(2)} para completar el pago`, 400);
   }
 
-  localDb.ejecutar(
+  await localDb.ejecutar(
     `UPDATE pedidos_local SET estado = 'pagado', descuento = ?, impuesto = ?, propina = ?, total = ?, updated_at = ? WHERE id = ?`,
     [desc, imp, prop, total, new Date().toISOString(), pedidoId]
   );
-  if (pedido.mesa_id) actualizarEstadoMesaCache(pedido.mesa_id, 'libre');
+  if (pedido.mesa_id) await actualizarEstadoMesaCache(pedido.mesa_id, 'libre');
   await encolar('pedidos', 'cobrar', {
     pedido_id_local: pedidoId,
     pagado_con,
@@ -481,22 +490,22 @@ async function hCobrar(match, body) {
     propina: prop,
   });
 
-  return { pedido: construirPedido(pedidoId) };
+  return { pedido: await construirPedido(pedidoId) };
 }
 
 async function hCancelar(match) {
   const pedidoId = match[1];
-  const pedido = localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   if (!pedido) throw new OfflineApiError('Pedido no encontrado');
 
-  localDb.ejecutar(`UPDATE pedidos_local SET estado = 'cancelado', updated_at = ? WHERE id = ?`, [
+  await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'cancelado', updated_at = ? WHERE id = ?`, [
     new Date().toISOString(),
     pedidoId,
   ]);
-  if (pedido.mesa_id) actualizarEstadoMesaCache(pedido.mesa_id, 'libre');
+  if (pedido.mesa_id) await actualizarEstadoMesaCache(pedido.mesa_id, 'libre');
   await encolar('pedidos', 'cancelar', { pedido_id_local: pedidoId });
 
-  return { pedido: construirPedido(pedidoId) };
+  return { pedido: await construirPedido(pedidoId) };
 }
 
 // El orden importa: las rutas más específicas van antes que los patrones

@@ -25,6 +25,19 @@ async function migrarNumeroPedidos() {
   }
 }
 
+// Pedidos creados antes de que existiera la columna numero_jornada (o antes
+// de que crear() la completara de forma consistente) quedaron con
+// numero_jornada NULL. Se usa numero_global como respaldo para que el
+// historial siempre tenga un número que mostrar en vez de "null".
+async function backfillNumeroJornada() {
+  const { rowCount } = await pool.query(
+    `UPDATE pedidos SET numero_jornada = numero_global WHERE numero_jornada IS NULL`
+  );
+  if (rowCount > 0) {
+    console.log(`  numero_jornada completado con numero_global en ${rowCount} pedido(s) antiguo(s)`);
+  }
+}
+
 async function seedDatosEjemplo() {
   const { rows: existentes } = await pool.query('SELECT id FROM restaurantes WHERE email = $1', [
     EMAIL_RESTAURANTE_DEMO,
@@ -253,6 +266,7 @@ async function initDB() {
 
   console.log('\nBase de datos inicializada correctamente.');
 
+  await backfillNumeroJornada();
   await seedCodigoAccesoInicial();
   await seedDatosEjemplo();
 }

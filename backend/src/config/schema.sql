@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS pedidos (
   mesa_id UUID REFERENCES mesas(id) ON DELETE SET NULL,
   jornada_id UUID REFERENCES jornadas(id) ON DELETE SET NULL,
   usuario_id UUID NOT NULL REFERENCES usuarios(id),
-  numero_global SERIAL,
+  numero_global INTEGER NOT NULL,
   numero_jornada INTEGER,
   tipo VARCHAR(20) NOT NULL DEFAULT 'mesa'
     CHECK (tipo IN ('mesa', 'barra', 'delivery', 'take_away')),
@@ -593,3 +593,11 @@ CREATE TABLE IF NOT EXISTS pagos (
 
 CREATE INDEX IF NOT EXISTS idx_pagos_restaurante_id ON pagos(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_pagos_estado ON pagos(estado);
+
+-- BUG: numero_global era un SERIAL, es decir un consecutivo global de TODA
+-- la tabla compartido entre restaurantes (restaurante A #75, restaurante B
+-- #76...), a pesar de que cada restaurante es una cuenta/entidad fiscal
+-- independiente ante la DIAN y necesita su propio consecutivo. Se le quita
+-- el DEFAULT (que apuntaba a la sequence del SERIAL); ahora pedidoModel.crear()
+-- calcula el consecutivo con MAX(numero_global)+1 filtrado por restaurante_id.
+ALTER TABLE pedidos ALTER COLUMN numero_global DROP DEFAULT;

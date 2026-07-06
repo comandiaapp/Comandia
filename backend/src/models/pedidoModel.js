@@ -55,22 +55,49 @@ async function crear({ id, restaurante_id, sucursal_id, mesa_id, jornada_id, usu
   try {
     await client.query('BEGIN');
 
+    // numero_global y numero_jornada son consecutivos POR RESTAURANTE (cada
+    // restaurante es una cuenta/entidad fiscal independiente ante la DIAN), así
+    // que se calculan con MAX(...)+1 filtrado por restaurante_id en vez de un
+    // SERIAL global de la tabla. Postgres no permite "FOR UPDATE" sobre una
+    // agregación, y ademas un SELECT ... FOR UPDATE de la última fila no basta
+    // para serializar el cálculo (dos transacciones concurrentes leerían la
+    // misma fila "última" antes de que cualquiera confirme su INSERT), así que
+    // se usa un advisory lock transaccional por restaurante: la segunda
+    // transacción concurrente queda bloqueada hasta que la primera confirme
+    // (o revierta), y solo entonces calcula su propio MAX(...)+1 ya actualizado.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [restaurante_id]);
+
+    const { rows: globalRows } = await client.query(
+      `SELECT COALESCE(MAX(numero_global), 0) + 1 AS numero FROM pedidos WHERE restaurante_id = $1`,
+      [restaurante_id]
+    );
+    const numeroGlobal = Number(globalRows[0].numero);
+
     // numero_jornada es el correlativo que ven meseros y cocina (#01, #02...)
-    // y reinicia con cada jornada. Sin jornada activa no hay contra qué
-    // contar, así que se completa después del INSERT con el correlativo
-    // global como respaldo (nunca queda vacío).
-    let numeroJornada = null;
+    // y reinicia con cada jornada. Sin jornada activa, reinicia por día
+    // calendario (zona horaria Colombia) en vez de quedar vacío.
+    let numeroJornada;
     if (jornada_id) {
-      const { rows: countRows } = await client.query(
-        `SELECT COUNT(*) + 1 AS numero FROM pedidos WHERE jornada_id = $1 AND restaurante_id = $2`,
+      const { rows: jornadaRows } = await client.query(
+        `SELECT COALESCE(MAX(numero_jornada), 0) + 1 AS numero
+         FROM pedidos WHERE jornada_id = $1 AND restaurante_id = $2`,
         [jornada_id, restaurante_id]
       );
-      numeroJornada = Number(countRows[0].numero);
+      numeroJornada = Number(jornadaRows[0].numero);
+    } else {
+      const { rows: diaRows } = await client.query(
+        `SELECT COALESCE(MAX(numero_jornada), 0) + 1 AS numero
+         FROM pedidos
+         WHERE restaurante_id = $1 AND jornada_id IS NULL
+           AND DATE(created_at AT TIME ZONE 'America/Bogota') = (now() AT TIME ZONE 'America/Bogota')::date`,
+        [restaurante_id]
+      );
+      numeroJornada = Number(diaRows[0].numero);
     }
 
     const { rows } = await client.query(
-      `INSERT INTO pedidos (id, restaurante_id, sucursal_id, mesa_id, jornada_id, usuario_id, tipo, notas, numero_jornada)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO pedidos (id, restaurante_id, sucursal_id, mesa_id, jornada_id, usuario_id, tipo, notas, numero_global, numero_jornada)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         id,
@@ -81,18 +108,11 @@ async function crear({ id, restaurante_id, sucursal_id, mesa_id, jornada_id, usu
         usuario_id,
         tipo ?? 'mesa',
         notas ?? null,
+        numeroGlobal,
         numeroJornada,
       ]
     );
-    let pedido = rows[0];
-
-    if (!jornada_id) {
-      const { rows: sinJornadaRows } = await client.query(
-        `UPDATE pedidos SET numero_jornada = numero_global WHERE id = $1 RETURNING *`,
-        [pedido.id]
-      );
-      pedido = sinJornadaRows[0];
-    }
+    const pedido = rows[0];
 
     if (mesa_id) {
       await client.query(

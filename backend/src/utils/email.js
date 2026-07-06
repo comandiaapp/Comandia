@@ -1,29 +1,26 @@
-const nodemailer = require('nodemailer');
+const Brevo = require('@getbrevo/brevo');
 
 const env = require('../config/env');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.sendinblue.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: env.brevoEmail,
-    pass: env.brevoSmtpKey,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.authentications['apiKey'].apiKey = env.brevoApiKey;
 
-const FROM = '"Comandia" <b1018a001@smtp-brevo.com>';
+async function enviarEmail(to, subject, html) {
+  const sendSmtpEmail = new Brevo.SendSmtpEmail();
+  sendSmtpEmail.subject = subject;
+  sendSmtpEmail.htmlContent = html;
+  sendSmtpEmail.sender = {
+    name: 'Comandia',
+    email: 'comandiaapp@gmail.com',
+  };
+  sendSmtpEmail.to = [{ email: to }];
 
-async function enviarCorreo(opciones) {
   try {
-    const info = await transporter.sendMail(opciones);
-    console.log('Email enviado:', info.messageId);
-    return info;
+    const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('Email enviado:', result.body?.messageId);
+    return result;
   } catch (error) {
-    console.error('Error enviando email:', error);
+    console.error('Error enviando email:', JSON.stringify(error));
     throw error;
   }
 }
@@ -99,12 +96,7 @@ async function enviarVerificacionEmail(email, nombre, token) {
     `,
   });
 
-  return enviarCorreo({
-    from: FROM,
-    to: email,
-    subject: 'Verifica tu cuenta en Comandia',
-    html,
-  });
+  return enviarEmail(email, 'Verifica tu cuenta en Comandia', html);
 }
 
 async function enviarResetPassword(email, nombre, token) {
@@ -127,12 +119,7 @@ async function enviarResetPassword(email, nombre, token) {
     `,
   });
 
-  return enviarCorreo({
-    from: FROM,
-    to: email,
-    subject: 'Recupera tu contraseña de Comandia',
-    html,
-  });
+  return enviarEmail(email, 'Recupera tu contraseña de Comandia', html);
 }
 
 async function enviarBienvenida(email, nombre, restaurante, trialExpira) {
@@ -163,12 +150,7 @@ async function enviarBienvenida(email, nombre, restaurante, trialExpira) {
     `,
   });
 
-  return enviarCorreo({
-    from: FROM,
-    to: email,
-    subject: '¡Bienvenido a Comandia! Tu trial de 14 días ha comenzado',
-    html,
-  });
+  return enviarEmail(email, '¡Bienvenido a Comandia! Tu trial de 14 días ha comenzado', html);
 }
 
 const PLAN_LABELS = {
@@ -203,12 +185,7 @@ async function enviarConfirmacionPago(email, nombre, plan, fechaVencimiento) {
     `,
   });
 
-  return enviarCorreo({
-    from: FROM,
-    to: email,
-    subject: `✅ Pago confirmado — Plan ${planLabel} activado`,
-    html,
-  });
+  return enviarEmail(email, `✅ Pago confirmado — Plan ${planLabel} activado`, html);
 }
 
 async function enviarAvisoSuscripcionInactiva(email, nombre, motivo) {
@@ -229,12 +206,7 @@ async function enviarAvisoSuscripcionInactiva(email, nombre, motivo) {
     `,
   });
 
-  return enviarCorreo({
-    from: FROM,
-    to: email,
-    subject: `Tu suscripción en Comandia fue ${textoMotivo}`,
-    html,
-  });
+  return enviarEmail(email, `Tu suscripción en Comandia fue ${textoMotivo}`, html);
 }
 
 module.exports = {

@@ -154,7 +154,7 @@ async function registro(req, res) {
     });
 
     // El envío de correos no debe tumbar el registro si Brevo falla o no
-    // está configurado (p. ej. en desarrollo sin BREVO_SMTP_KEY).
+    // está configurado (p. ej. en desarrollo sin BREVO_API_KEY).
     enviarVerificacionEmail(usuario.email, usuario.nombre, tokenVerificacion).catch((err) => {
       console.error('Error enviando email de verificación:', err.message || err);
     });

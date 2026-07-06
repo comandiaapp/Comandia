@@ -23,6 +23,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import EstadoConexion from './EstadoConexion';
 
+// La app de escritorio (Tauri) no tiene pestañas de navegador: un target="_blank"
+// no abre nada, así que ahí navegamos en la misma ventana con react-router.
+const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
+
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: Home },
   { to: '/menu', label: 'Menú', icon: UtensilsCrossed },
@@ -85,7 +89,7 @@ function Sidebar() {
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {itemsVisibles.map(({ to, label, icon: Icon }) =>
-            to === '/cocina' ? (
+            to === '/cocina' && !isTauri ? (
               <a
                 key={to}
                 href={to}

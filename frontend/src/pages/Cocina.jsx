@@ -9,6 +9,8 @@ import { getCocina, marcarItemEnPreparacion, marcarItemListo, marcarPedidoEntreg
 const INTERVALO_POLLING = 15000;
 const DURACION_FADE_OUT = 400;
 
+const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
+
 function colorTiempo(minutos) {
   if (minutos < 10) return 'var(--success)';
   if (minutos < 20) return 'var(--warning)';
@@ -67,6 +69,20 @@ function Cocina() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  function handleVolver() {
+    if (isTauri) {
+      navigate('/mesas');
+      return;
+    }
+    // En web, Cocina se abre en una pestaña nueva (target="_blank" en el sidebar):
+    // "Volver" debe cerrar esa pestaña; si el navegador no lo permite
+    // (la pestaña no fue abierta por script), retrocedemos en el historial.
+    window.close();
+    if (!window.closed) {
+      navigate(-1);
+    }
+  }
 
   function handleToggleFullscreen() {
     if (document.fullscreenElement) {
@@ -184,7 +200,7 @@ function Cocina() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/mesas')}
+            onClick={handleVolver}
             className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <ArrowLeft size={14} />

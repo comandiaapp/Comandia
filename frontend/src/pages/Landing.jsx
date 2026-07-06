@@ -22,7 +22,7 @@ const NARANJA_GRADIENTE = 'linear-gradient(135deg, #FF6B00 0%, #F97316 55%, #FFA
 const CREMA = '#FFFBF5';
 const EMAIL_CONTACTO = 'comandiaapp@gmail.com';
 const URL_DESCARGA_WINDOWS =
-  'https://github.com/comandiaapp/Comandia/releases/latest/download/Comandia_1.1.1_x64-setup.exe';
+  'https://github.com/comandiaapp/Comandia/releases/latest/download/Comandia_1.1.2_x64-setup.exe';
 
 const SECCIONES_NAV = [
   { id: 'funciones', label: 'Funciones' },

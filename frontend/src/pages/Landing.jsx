@@ -450,6 +450,10 @@ function Hero() {
             </a>
           </div>
           <p className="mt-3 text-xs font-medium text-white/70">Windows 10+ • 64 bits • Gratis</p>
+          <p className="mt-1 text-xs text-white/60">
+            ⚠️ Si Windows muestra una advertencia de seguridad, haz click en "Más información" → "Ejecutar de todas
+            formas". Es completamente seguro.
+          </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm font-medium text-white/90">
             <span className="rounded-full border border-white/30 bg-white/20 px-4 py-1.5">⚡ Listo en 5 minutos</span>

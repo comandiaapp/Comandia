@@ -176,7 +176,7 @@ function Pedidos() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Número de pedido o mesa..."
-              className="input pl-9"
+              className="input !pl-9"
             />
           </div>
         </label>

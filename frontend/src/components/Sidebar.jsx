@@ -25,7 +25,11 @@ import EstadoConexion from './EstadoConexion';
 
 // La app de escritorio (Tauri) no tiene pestañas de navegador: un target="_blank"
 // no abre nada, así que ahí navegamos en la misma ventana con react-router.
-const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
+const isTauri =
+  typeof window !== 'undefined' &&
+  (window.__TAURI__ !== undefined ||
+    window.__TAURI_INTERNALS__ !== undefined ||
+    navigator.userAgent.includes('Tauri'));
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: Home },

@@ -450,11 +450,6 @@ function Mesas() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Mesas</h1>
-          {!online && (
-            <span className="rounded-full bg-[var(--error)]/10 px-2 py-1 text-xs font-semibold uppercase text-[var(--error)]">
-              Sin conexión
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-2">

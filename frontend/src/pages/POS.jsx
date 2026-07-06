@@ -17,7 +17,6 @@ import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import VisorFactura from '../components/VisorFactura';
 import { useAuth } from '../context/AuthContext';
-import { useConnectivity } from '../context/ConnectivityContext';
 import { getMesa } from '../utils/mesas';
 import { getCategorias } from '../utils/categorias';
 import { getProductos } from '../utils/productos';
@@ -91,7 +90,6 @@ function tiempoTranscurrido(fechaIso) {
 
 function POS({ mesaId, onCerrar = () => {} }) {
   const { usuario } = useAuth();
-  const { online = true } = useConnectivity() || {};
   const puedeCancelar = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
 
   const [mesa, setMesa] = useState(null);
@@ -409,11 +407,6 @@ function POS({ mesaId, onCerrar = () => {} }) {
               {LABEL_ESTADO_PEDIDO[pedido?.estado] || pedido?.estado}
             </span>
           </div>
-          {!online && (
-            <p className="mt-2 rounded-lg bg-[var(--error)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--error)]">
-              Modo offline — guardando localmente, se sincroniza al volver la conexión
-            </p>
-          )}
         </div>
 
         <div className="max-h-64 flex-1 overflow-y-auto p-4 md:max-h-none">

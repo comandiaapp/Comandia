@@ -21,7 +21,6 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import EstadoConexion from './EstadoConexion';
 
 // La app de escritorio (Tauri) no tiene pestañas de navegador: un target="_blank"
 // no abre nada, así que ahí navegamos en la misma ventana con react-router.
@@ -125,8 +124,6 @@ function Sidebar() {
         </nav>
 
         <div className="space-y-3 border-t border-[var(--border-sidebar)] px-4 py-4">
-          <EstadoConexion />
-
           <div className="flex items-center gap-2">
             <button
               type="button"

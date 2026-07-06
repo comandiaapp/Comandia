@@ -10,9 +10,23 @@ const transporter = nodemailer.createTransport({
     user: env.brevoEmail,
     pass: env.brevoSmtpKey,
   },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
-const FROM = 'Comandia <comandiaapp@gmail.com>';
+const FROM = '"Comandia" <b1018a001@smtp-brevo.com>';
+
+async function enviarCorreo(opciones) {
+  try {
+    const info = await transporter.sendMail(opciones);
+    console.log('Email enviado:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Error enviando email:', error);
+    throw error;
+  }
+}
 
 function layout({ titulo, contenido }) {
   return `
@@ -85,7 +99,7 @@ async function enviarVerificacionEmail(email, nombre, token) {
     `,
   });
 
-  return transporter.sendMail({
+  return enviarCorreo({
     from: FROM,
     to: email,
     subject: 'Verifica tu cuenta en Comandia',
@@ -113,7 +127,7 @@ async function enviarResetPassword(email, nombre, token) {
     `,
   });
 
-  return transporter.sendMail({
+  return enviarCorreo({
     from: FROM,
     to: email,
     subject: 'Recupera tu contraseña de Comandia',
@@ -149,7 +163,7 @@ async function enviarBienvenida(email, nombre, restaurante, trialExpira) {
     `,
   });
 
-  return transporter.sendMail({
+  return enviarCorreo({
     from: FROM,
     to: email,
     subject: '¡Bienvenido a Comandia! Tu trial de 14 días ha comenzado',
@@ -189,7 +203,7 @@ async function enviarConfirmacionPago(email, nombre, plan, fechaVencimiento) {
     `,
   });
 
-  return transporter.sendMail({
+  return enviarCorreo({
     from: FROM,
     to: email,
     subject: `✅ Pago confirmado — Plan ${planLabel} activado`,
@@ -215,7 +229,7 @@ async function enviarAvisoSuscripcionInactiva(email, nombre, motivo) {
     `,
   });
 
-  return transporter.sendMail({
+  return enviarCorreo({
     from: FROM,
     to: email,
     subject: `Tu suscripción en Comandia fue ${textoMotivo}`,

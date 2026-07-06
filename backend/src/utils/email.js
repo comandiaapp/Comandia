@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 const env = require('../config/env');
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
+  host: 'smtp-relay.sendinblue.com',
   port: 587,
   secure: false,
   auth: {

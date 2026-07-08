@@ -118,6 +118,8 @@ class SyncService {
         });
       } else if (item.operacion === 'cancelar') {
         await api.post(`/api/pedidos/${pedidoId}/cancelar`);
+      } else if (item.operacion === 'entregado') {
+        await api.patch(`/api/pedidos/${pedidoId}/entregado`);
       }
       return;
     }
@@ -147,6 +149,10 @@ class SyncService {
         });
       } else if (item.operacion === 'eliminar') {
         await api.delete(`/api/pedidos/${pedidoId}/items/${itemId}`);
+      } else if (item.operacion === 'marcar_preparacion') {
+        await api.patch(`/api/pedidos/${pedidoId}/items/${itemId}/en-preparacion`);
+      } else if (item.operacion === 'marcar_listo') {
+        await api.patch(`/api/pedidos/${pedidoId}/items/${itemId}/listo`);
       }
       return;
     }

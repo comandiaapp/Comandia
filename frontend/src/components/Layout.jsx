@@ -1,13 +1,34 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Mail, Clock, AlertTriangle, Lock } from 'lucide-react';
+import { Mail, Clock, AlertTriangle, Lock, WifiOff, RefreshCw } from 'lucide-react';
 
 import Sidebar from './Sidebar';
 import { useAuth } from '../context/AuthContext';
+import { useConnectivity } from '../context/ConnectivityContext';
 import { diasRestantes } from '../utils/fecha';
 import { formatearPrecio } from '../utils/formato';
 import { iniciarPago } from '../utils/pagos';
+
+function BadgeConectividad() {
+  const { online, sincronizando, resumen } = useConnectivity() || {};
+  if (online && !resumen?.pendientes) return null;
+
+  return (
+    <div
+      className={`flex items-center gap-2 px-4 py-1.5 text-center text-xs font-semibold text-white ${
+        online ? 'bg-[var(--warning)]' : 'bg-[var(--error)]'
+      }`}
+    >
+      {online ? <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} /> : <WifiOff size={14} />}
+      <span>
+        {online
+          ? `Sincronizando ${resumen.pendientes} cambio${resumen.pendientes === 1 ? '' : 's'} pendiente${resumen.pendientes === 1 ? '' : 's'}...`
+          : 'Sin conexión: trabajando con la copia local, se sincronizará al volver internet'}
+      </span>
+    </div>
+  );
+}
 
 const PLANES_MODAL = [
   { id: 'basico', nombre: 'Básico', precio: 89000 },
@@ -146,6 +167,7 @@ function Layout({ children }) {
     <div className="flex min-h-screen bg-[var(--bg-primary)]">
       <Sidebar />
       <div className="flex flex-1 flex-col pt-16 md:pt-0">
+        <BadgeConectividad />
         {usuario?.email_verificado === false && <BannerVerificacion />}
         {esTrial && !trialExpirado && dias !== null && <BannerTrial dias={dias} />}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>

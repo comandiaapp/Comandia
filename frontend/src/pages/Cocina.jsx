@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Check, Flame, Maximize, Minimize, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Check, Flame, Maximize, Minimize, UtensilsCrossed, WifiOff } from 'lucide-react';
 
 import Spinner from '../components/Spinner';
+import { useConnectivity } from '../context/ConnectivityContext';
 import { getCocina, marcarItemEnPreparacion, marcarItemListo, marcarPedidoEntregado } from '../utils/pedidos';
 
 const INTERVALO_POLLING = 15000;
@@ -33,6 +34,7 @@ function etiquetaOrigen(pedido) {
 
 function Cocina() {
   const navigate = useNavigate();
+  const { online } = useConnectivity() || {};
 
   const [pedidos, setPedidos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -181,6 +183,12 @@ function Cocina() {
         </div>
 
         <div className="flex items-center gap-4">
+          {online === false && (
+            <span className="flex items-center gap-1.5 rounded-full bg-[var(--error)]/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[var(--error)]">
+              <WifiOff size={14} />
+              Sin conexión
+            </span>
+          )}
           <span className="font-mono text-xl font-semibold text-[var(--text-primary)]">
             {horaActual.toLocaleTimeString('es-CO', {
               timeZone: 'America/Bogota',

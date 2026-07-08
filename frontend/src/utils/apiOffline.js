@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { localDb } from '../db/database';
 
 const ESTADOS_ACTIVOS = ['abierto', 'enviado_cocina', 'listo', 'cuenta_pedida'];
+// Espeja pedidoModel.js: mismos estados que ve la pantalla de cocina online.
+const ESTADOS_COCINA = ['enviado_cocina', 'listo'];
+const ESTADOS_ITEM_VISIBLES_COCINA = ['pendiente', 'en_preparacion', 'listo'];
 
 export class OfflineApiError extends Error {
   constructor(mensaje, status = 404) {
@@ -60,6 +63,28 @@ async function upsertPedidoFila(pedido) {
   );
 }
 
+// A diferencia de upsertPedidoFila, no pisa columnas de dinero: la lista de
+// cocina no las trae, y sobrescribirlas con 0 rompería el total de un pedido
+// que ese mismo dispositivo ya tenía cacheado en detalle (p. ej. la caja).
+async function mirrorPedidoCocina(pedido) {
+  const existe = await localDb.consultarUno(`SELECT id FROM pedidos_local WHERE id = ?`, [pedido.id]);
+  const ahora = new Date().toISOString();
+  if (existe) {
+    await localDb.ejecutar(`UPDATE pedidos_local SET estado = ?, updated_at = ? WHERE id = ?`, [
+      pedido.estado,
+      ahora,
+      pedido.id,
+    ]);
+  } else {
+    await localDb.ejecutar(
+      `INSERT INTO pedidos_local (id, mesa_id, numero_jornada, tipo, estado, sincronizado, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+      [pedido.id, pedido.mesa_id ?? null, pedido.numero_jornada ?? null, pedido.tipo, pedido.estado, ahora, ahora]
+    );
+  }
+  for (const item of pedido.items || []) await upsertItemFila(item, pedido.id);
+}
+
 async function upsertItemFila(item, pedidoId) {
   await localDb.ejecutar(
     `INSERT OR REPLACE INTO pedido_items_local
@@ -101,6 +126,10 @@ const RUTAS_MIRROR = [
   { metodo: 'get', re: /^\/api\/mesas$/, tipo: 'mesas_lista' },
   { metodo: 'get', re: /^\/api\/mesas\/([^/]+)$/, tipo: 'mesa_una' },
   { metodo: 'patch', re: /^\/api\/mesas\/([^/]+)\/estado$/, tipo: 'mesa_una' },
+  { metodo: 'get', re: /^\/api\/cocina$/, tipo: 'cocina_lista' },
+  { metodo: 'patch', re: /^\/api\/pedidos\/([^/]+)\/items\/([^/]+)\/en-preparacion$/, tipo: 'item_estado' },
+  { metodo: 'patch', re: /^\/api\/pedidos\/([^/]+)\/items\/([^/]+)\/listo$/, tipo: 'item_estado' },
+  { metodo: 'patch', re: /^\/api\/pedidos\/([^/]+)\/entregado$/, tipo: 'pedido_solo' },
 ];
 
 // Se llama desde el interceptor de éxito de axios (nunca bloquea la
@@ -110,7 +139,17 @@ export async function mirrorRespuestaExitosa(config, data) {
   try {
     const metodo = (config.method || 'get').toLowerCase();
     const url = (config.url || '').split('?')[0];
-    const ruta = RUTAS_MIRROR.find((r) => r.metodo === metodo && r.re.test(url));
+    let ruta = null;
+    let match = null;
+    for (const r of RUTAS_MIRROR) {
+      if (r.metodo !== metodo) continue;
+      const m = r.re.exec(url);
+      if (m) {
+        ruta = r;
+        match = m;
+        break;
+      }
+    }
     if (!ruta) return;
 
     const datos = data?.datos;
@@ -126,6 +165,13 @@ export async function mirrorRespuestaExitosa(config, data) {
       for (const mesa of datos.mesas) await upsertMesaCache(mesa);
     } else if (ruta.tipo === 'mesa_una' && datos.mesa) {
       await upsertMesaCache(datos.mesa);
+    } else if (ruta.tipo === 'cocina_lista' && Array.isArray(datos.pedidos)) {
+      for (const pedido of datos.pedidos) await mirrorPedidoCocina(pedido);
+    } else if (ruta.tipo === 'item_estado') {
+      // El pedido puede venir null (el item cambió de estado sin arrastrar al
+      // pedido); el id del pedido siempre está en la URL, no depende de eso.
+      if (datos.item) await upsertItemFila(datos.item, match[1]);
+      if (datos.pedido) await upsertPedidoFila(datos.pedido);
     } else if (datos.pedido) {
       await upsertPedidoFila(datos.pedido);
 
@@ -508,6 +554,116 @@ async function hCancelar(match) {
   return { pedido: await construirPedido(pedidoId) };
 }
 
+// --- Cocina ---
+
+async function mesaNumero(mesaId) {
+  if (!mesaId) return null;
+  const fila = await localDb.consultarUno(`SELECT datos FROM mesas_cache WHERE id = ?`, [mesaId]);
+  return fila ? JSON.parse(fila.datos).numero ?? null : null;
+}
+
+// ponytail: no reproduce enviado_cocina_at (requeriría trackear por item
+// cuándo se envió) — la tarjeta de cocina simplemente muestra 0 min en ese
+// caso, degradación aceptable mientras dura el offline.
+async function hCocina() {
+  const placeholders = ESTADOS_COCINA.map(() => '?').join(',');
+  const pedidos = await localDb.consultar(
+    `SELECT * FROM pedidos_local WHERE estado IN (${placeholders}) ORDER BY created_at ASC`,
+    ESTADOS_COCINA
+  );
+
+  const itemPlaceholders = ESTADOS_ITEM_VISIBLES_COCINA.map(() => '?').join(',');
+  const resultado = [];
+  for (const p of pedidos) {
+    const itemFilas = await localDb.consultar(
+      `SELECT * FROM pedido_items_local WHERE pedido_id = ? AND estado IN (${itemPlaceholders}) ORDER BY created_at ASC`,
+      [p.id, ...ESTADOS_ITEM_VISIBLES_COCINA]
+    );
+    if (itemFilas.length === 0) continue;
+    resultado.push({
+      id: p.id,
+      numero_jornada: p.numero_jornada,
+      tipo: p.tipo,
+      estado: p.estado,
+      mesa_id: p.mesa_id,
+      mesa_numero: await mesaNumero(p.mesa_id),
+      items: itemFilas.map(filaAItem),
+    });
+  }
+  return { pedidos: resultado };
+}
+
+async function hMarcarItemEnPreparacion(match) {
+  const [, pedidoId, itemId] = match;
+  const item = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ? AND pedido_id = ?`, [
+    itemId,
+    pedidoId,
+  ]);
+  if (!item) throw new OfflineApiError('Item no encontrado');
+
+  await localDb.ejecutar(`UPDATE pedido_items_local SET estado = 'en_preparacion' WHERE id = ?`, [itemId]);
+
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  let pedidoActualizado = null;
+  if (pedido.estado === 'listo') {
+    await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'enviado_cocina', updated_at = ? WHERE id = ?`, [
+      new Date().toISOString(),
+      pedidoId,
+    ]);
+    pedidoActualizado = await construirPedido(pedidoId);
+  }
+  await encolar('pedido_items', 'marcar_preparacion', { pedido_id_local: pedidoId, item_id_local: itemId });
+
+  const actualizado = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ?`, [itemId]);
+  return { item: filaAItem(actualizado), pedido: pedidoActualizado };
+}
+
+async function hMarcarItemListo(match) {
+  const [, pedidoId, itemId] = match;
+  const item = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ? AND pedido_id = ?`, [
+    itemId,
+    pedidoId,
+  ]);
+  if (!item) throw new OfflineApiError('Item no encontrado');
+
+  await localDb.ejecutar(`UPDATE pedido_items_local SET estado = 'listo' WHERE id = ?`, [itemId]);
+
+  const pendientes = await localDb.consultarUno(
+    `SELECT COUNT(*) AS total FROM pedido_items_local WHERE pedido_id = ? AND estado NOT IN ('listo','entregado','cancelado')`,
+    [pedidoId]
+  );
+  let pedidoActualizado = null;
+  if (pendientes.total === 0) {
+    await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'listo', updated_at = ? WHERE id = ?`, [
+      new Date().toISOString(),
+      pedidoId,
+    ]);
+    pedidoActualizado = await construirPedido(pedidoId);
+  }
+  await encolar('pedido_items', 'marcar_listo', { pedido_id_local: pedidoId, item_id_local: itemId });
+
+  const actualizado = await localDb.consultarUno(`SELECT * FROM pedido_items_local WHERE id = ?`, [itemId]);
+  return { item: filaAItem(actualizado), pedido: pedidoActualizado };
+}
+
+async function hMarcarEntregado(match) {
+  const pedidoId = match[1];
+  const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
+  if (!pedido) throw new OfflineApiError('Pedido no encontrado');
+
+  await localDb.ejecutar(`UPDATE pedidos_local SET estado = 'abierto', updated_at = ? WHERE id = ?`, [
+    new Date().toISOString(),
+    pedidoId,
+  ]);
+  await localDb.ejecutar(
+    `UPDATE pedido_items_local SET estado = 'entregado' WHERE pedido_id = ? AND estado NOT IN ('cancelado','entregado')`,
+    [pedidoId]
+  );
+  await encolar('pedidos', 'entregado', { pedido_id_local: pedidoId });
+
+  return { pedido: await construirPedido(pedidoId) };
+}
+
 // El orden importa: las rutas más específicas van antes que los patrones
 // genéricos de un solo parámetro (p. ej. "/mesas/plano" antes que "/mesas/:id").
 const RUTAS = [
@@ -528,6 +684,10 @@ const RUTAS = [
   { metodo: 'post', re: /^\/api\/pedidos\/([^/]+)\/reabrir-cuenta$/, h: hReabrirCuenta },
   { metodo: 'post', re: /^\/api\/pedidos\/([^/]+)\/cobrar$/, h: hCobrar },
   { metodo: 'post', re: /^\/api\/pedidos\/([^/]+)\/cancelar$/, h: hCancelar },
+  { metodo: 'get', re: /^\/api\/cocina$/, h: hCocina },
+  { metodo: 'patch', re: /^\/api\/pedidos\/([^/]+)\/items\/([^/]+)\/en-preparacion$/, h: hMarcarItemEnPreparacion },
+  { metodo: 'patch', re: /^\/api\/pedidos\/([^/]+)\/items\/([^/]+)\/listo$/, h: hMarcarItemListo },
+  { metodo: 'patch', re: /^\/api\/pedidos\/([^/]+)\/entregado$/, h: hMarcarEntregado },
 ];
 
 // Intenta resolver una petición fallida por falta de red usando la copia

@@ -2,12 +2,46 @@
 // precuenta, en formato de tirilla POS de 80mm con fuente monoespaciada
 // para que las columnas queden alineadas tanto en pantalla como al imprimir.
 
+const QRCode = require('qrcode');
+
 const ANCHO = 40;
 const COL_REG = 4;
 const COL_DESC = 15;
 const COL_CANT = 5;
 const COL_VUNIT = 8;
 const COL_TOTAL = 8;
+
+// Columnas de la tabla de ítems de la factura DIAN (más angostas que las de
+// la precuenta porque suman Código/VR/Imp.): Reg+Código+Descripción van en
+// la(s) línea(s) de nombre, Cant+Precio/U+Total en la última. VR e Imp. no
+// caben en la grilla de 40 caracteres junto a todo lo demás, así que van en
+// una línea de anotación debajo de cada ítem — así se ve una factura DIAN
+// real impresa en una tirilla de 80mm (no como tabla rígida de 8 columnas).
+const COLF_REG = 3;
+const COLF_COD = 6;
+const COLF_DESC = 11;
+const COLF_CANT = 4;
+const COLF_VUNIT = 8;
+const COLF_TOTAL = 8;
+
+// Proveedor tecnológico real del software: fijo para todo el sistema (no
+// varía por restaurante), a diferencia de los demás datos de la factura.
+// ponytail: reemplazar con la razón social y NIT reales de la empresa antes
+// de emitir facturas en producción.
+const PROVEEDOR_TECNOLOGICO = {
+  razon_social: 'Comandia SAS',
+  nombre_software: 'Comandia POS',
+  nit: 'PENDIENTE',
+};
+
+const ETIQUETAS_MEDIO_PAGO = {
+  efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta',
+  qr: 'QR',
+  nequi: 'Nequi',
+  transferencia: 'Transferencia',
+  mixto: 'Mixto',
+};
 
 function moneda(valor) {
   const entero = Math.round(Number(valor) || 0);
@@ -146,87 +180,224 @@ function envolverHTML(texto, { titulo }) {
   return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(titulo)}"><pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre></div>`;
 }
 
-function generarHTMLTicket(factura, restaurante, pedido, usuario) {
-  const lineas = [];
-  const prefijo = restaurante.prefijo_factura || 'FE';
-  const numeroSinGuion = String(factura.numero_factura).replace(/-/g, '');
+// Igual formato de fecha/hora que usa facturaModel.generarCUFE (para que el
+// CUFE y lo impreso coincidan), pero como texto "YYYY-MM-DD HH:MM:SS".
+function formatearFechaHoraISO(fecha) {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(new Date(fecha))
+    .reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+  return `${partes.year}-${partes.month}-${partes.day} ${partes.hour}:${partes.minute}:${partes.second}`;
+}
 
-  lineas.push(centrar(restaurante.nombre || ''));
-  if (restaurante.nit) lineas.push(centrar(`NIT: ${formatearNit(restaurante.nit)}`));
-  lineas.push(centrar(`FACTURA DE VENTA ${numeroSinGuion}`));
-  lineas.push(separador('═'));
+// La vigencia de la resolución DIAN son 24 meses desde fecha_resolucion_dian
+// (misma lectura por componentes UTC que formatearFecha, para no correrse
+// un día por la conversión a America/Bogota).
+function sumarMesesUTC(fecha, meses) {
+  const d = new Date(fecha);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + meses, d.getUTCDate()));
+}
 
-  if (restaurante.direccion) lineas.push(`Dir: ${restaurante.direccion}`);
-  if (restaurante.telefono) lineas.push(`Tel: ${restaurante.telefono}`);
-  if (restaurante.ciudad || restaurante.departamento) {
-    lineas.push([restaurante.ciudad, restaurante.departamento].filter(Boolean).join(', '));
+// Etiquetas de responsabilidad tributaria del encabezado. La de IVA/INC es
+// mutuamente excluyente según la tarifa aplicada (igual lógica que antes);
+// agente retenedor y micronegocio son etiquetas adicionales independientes
+// que se activan por configuración del restaurante.
+function etiquetasResponsabilidad(restaurante, impuestoPorcentaje) {
+  const etiquetas = [textoResponsabilidadFiscal(restaurante, impuestoPorcentaje)];
+  if (restaurante.micronegocio_regimen_simple) etiquetas.push('MICRONEGOCIO DE IMP.');
+  if (restaurante.agente_retenedor_iva) etiquetas.push('AGENTE RETENEDOR DE IVA');
+  return etiquetas;
+}
+
+// ponytail: el catálogo de productos no tiene un campo de código/SKU propio
+// (ver backend/src/config/schema.sql, tabla productos), así que se usa el
+// UUID del producto como código interno. Si se agrega un SKU real más
+// adelante, usarlo aquí en su lugar.
+function codigoInterno(item) {
+  const codigo = String(item.producto_id || '').slice(0, COLF_COD - 1).toUpperCase() || '-'.repeat(COLF_COD - 1);
+  return codigo.padEnd(COLF_COD);
+}
+
+// Código DIAN del impuesto aplicado: INC (Impuesto Nacional al Consumo,
+// tarifa del 8% que usa esta app) o IVA para cualquier otra tarifa.
+function codigoImpuesto(impuestoPorcentaje) {
+  return Number(impuestoPorcentaje) === 8 ? 'INC' : 'IVA';
+}
+
+function encabezadoItemsFactura() {
+  return (
+    '#'.padEnd(COLF_REG) +
+    'Cód.'.padEnd(COLF_COD) +
+    'Descrip.'.padEnd(COLF_DESC) +
+    'Cant'.padStart(COLF_CANT) +
+    'P.Unit'.padStart(COLF_VUNIT) +
+    'Total'.padStart(COLF_TOTAL)
+  );
+}
+
+// Tabla de ítems de la factura DIAN: Reg+Código+Descripción en la(s)
+// línea(s) de nombre, Cant+Precio/U+Total alineados en la última. VR
+// (tarifa) e Imp. (código de impuesto) no caben en la grilla de 40
+// caracteres junto a todo lo demás, así que van en una línea de anotación
+// debajo del ítem — así se ve una factura DIAN real impresa en 80mm.
+function filaItemFactura(item, numero, impuestoPorcentaje) {
+  const indent = ' '.repeat(COLF_REG + COLF_COD);
+  const regTxt = String(numero).padEnd(COLF_REG);
+  const codTxt = codigoInterno(item);
+  const palabras = String(item.nombre_producto).split(' ');
+  const lineasDesc = [];
+  let actual = '';
+  for (const palabra of palabras) {
+    const candidato = actual ? `${actual} ${palabra}` : palabra;
+    if (candidato.length > COLF_DESC && actual) {
+      lineasDesc.push(actual);
+      actual = palabra;
+    } else {
+      actual = candidato;
+    }
   }
-  lineas.push(textoResponsabilidadFiscal(restaurante, factura.impuesto_porcentaje));
-  lineas.push('');
+  if (actual) lineasDesc.push(actual);
+  if (lineasDesc.length === 0) lineasDesc.push('');
 
-  lineas.push('Autorización Numeración de Facturación');
-  if (restaurante.numero_resolucion_dian) {
-    lineas.push(`No. Formulario: ${restaurante.numero_resolucion_dian}`);
+  const lineas = lineasDesc.map((desc, idx) =>
+    (idx === 0 ? regTxt + codTxt : indent) + desc.padEnd(COLF_DESC)
+  );
+  const cant = `${item.cantidad}x`.padStart(COLF_CANT);
+  const vunit = moneda(item.precio_unitario).padStart(COLF_VUNIT);
+  const total = moneda(item.subtotal).padStart(COLF_TOTAL);
+  lineas[lineas.length - 1] += cant + vunit + total;
+
+  const vr = `${Number(impuestoPorcentaje)}%`;
+  lineas.push(`${indent}VR:${vr}  Imp:${codigoImpuesto(impuestoPorcentaje)}${Number(impuestoPorcentaje)}`);
+
+  for (const mod of item.modificadores || []) {
+    lineas.push(indent + `+ ${mod.nombre_opcion}`.slice(0, ANCHO - indent.length));
   }
-  if (restaurante.fecha_resolucion_dian) {
-    lineas.push(`Vigente desde ${formatearFecha(restaurante.fecha_resolucion_dian)} - 24 meses`);
+  if (item.notas) {
+    lineas.push(indent + `"${item.notas}"`.slice(0, ANCHO - indent.length));
   }
-  lineas.push('Numeración: AUTORIZADA');
-  lineas.push(`Prefijo ${prefijo} del No. ${restaurante.factura_desde ?? 1} al ${restaurante.factura_hasta ?? 99999}`);
-  lineas.push(`Fecha: ${formatearFechaHora(factura.fecha_emision)}`);
-  lineas.push('Caja: Principal');
-  lineas.push(`Turno: ${pedido.numero_jornada ?? pedido.numero_global ?? '-'}`);
-  lineas.push(`Vendedor: ${usuario?.nombre || '-'}`);
-  lineas.push('Cond. Pago: CONTADO');
-  lineas.push(separador());
 
-  lineas.push(`Cliente: ${factura.nombre_cliente}`);
-  lineas.push(`NIT/CC: ${factura.nit_cliente}`);
-  if (factura.email_cliente) lineas.push(`Correo: ${factura.email_cliente}`);
-  lineas.push(separador());
+  return lineas.join('\n');
+}
 
-  lineas.push(encabezadoItems());
-  lineas.push(separador());
+async function generarQR(payload) {
+  try {
+    return await QRCode.toDataURL(payload, { margin: 1, width: 132, errorCorrectionLevel: 'M' });
+  } catch (err) {
+    console.error('No se pudo generar el código QR de la factura:', err);
+    return null;
+  }
+}
+
+async function generarHTMLTicket(factura, restaurante, pedido) {
+  const antes = [];
+
+  antes.push(`ORD:# ${pedido.numero_jornada ?? pedido.numero_global ?? '-'}`);
+  antes.push(centrar(restaurante.nombre || ''));
+  if (restaurante.nit) antes.push(centrar(`NIT: ${formatearNit(restaurante.nit)}`));
+  for (const etiqueta of etiquetasResponsabilidad(restaurante, factura.impuesto_porcentaje)) {
+    antes.push(centrar(etiqueta));
+  }
+  if (restaurante.direccion || restaurante.ciudad) {
+    antes.push([restaurante.direccion, restaurante.ciudad].filter(Boolean).join(' '));
+  }
+  if (restaurante.referencia_sede) antes.push(restaurante.referencia_sede);
+  antes.push(separador('═'));
+
+  antes.push(`Factura electrónica de Venta: ${factura.numero_factura}`);
+  antes.push(`Fecha Generación Factura: ${formatearFechaHoraISO(factura.fecha_emision)}`);
+  antes.push(
+    `Fecha Validación DIAN: ${factura.fecha_validacion_dian ? formatearFechaHoraISO(factura.fecha_validacion_dian) : 'Pendiente'}`
+  );
+  antes.push(separador());
+
+  antes.push('AUTORIZACIÓN DE CLIENTE');
+  antes.push(`Nombre Cliente: ${factura.nombre_cliente}`);
+  antes.push(`Número de identificación: ${factura.nit_cliente}`);
+  antes.push(separador());
+
+  antes.push(encabezadoItemsFactura());
+  antes.push(separador());
   let numeroItem = 0;
   for (const item of (pedido.items || []).filter((i) => i.estado !== 'cancelado')) {
     numeroItem++;
-    lineas.push(filaItem(item, numeroItem));
+    antes.push(filaItemFactura(item, numeroItem, factura.impuesto_porcentaje));
   }
-  lineas.push(separador());
+  antes.push(separador());
+  antes.push(`Total Línea Detalles: ${numeroItem}`);
+  antes.push(separador());
 
-  lineas.push(fila('SUBTOTAL:', moneda(factura.subtotal)));
-  lineas.push(fila(`INC/IVA (${Number(factura.impuesto_porcentaje)}%):`, moneda(factura.impuesto_monto)));
-  lineas.push(separador('═'));
-  lineas.push(fila('TOTAL:', moneda(factura.total)));
-  lineas.push(separador('═'));
+  const etiquetaImpuesto = `${codigoImpuesto(factura.impuesto_porcentaje)} ${Number(factura.impuesto_porcentaje)}%`;
+  antes.push(fila('SUBTOTAL:', moneda(factura.subtotal)));
+  antes.push(fila(`${etiquetaImpuesto}:`, moneda(factura.impuesto_monto)));
+  antes.push(separador('═'));
+  antes.push(fila('TOTAL COP:', moneda(factura.total)));
+  antes.push(separador('═'));
 
-  const propinaCobrada = Number(pedido.propina) || 0;
-  if (propinaCobrada > 0) {
-    lineas.push(fila('Propina (cobrada):', moneda(propinaCobrada)));
-    lineas.push(fila('TOTAL CON PROPINA:', moneda(Number(factura.total) + propinaCobrada)));
-  } else {
-    lineas.push(fila('Propina sugerida (vol.):', moneda(factura.propina_sugerida)));
-    lineas.push(fila('TOTAL CON PROPINA:', moneda(factura.total_con_propina)));
+  // ponytail: no hay flujo de crédito/fiado en este sistema (ver
+  // pedidos.pagado_con), así que la forma de pago siempre es de contado.
+  antes.push('FORMA DE PAGO: Contado');
+  antes.push(`MEDIO DE PAGO: ${ETIQUETAS_MEDIO_PAGO[factura.metodo_pago] || factura.metodo_pago || '-'}`);
+  antes.push(separador());
+
+  antes.push('Lugar de entrega del bien y/o prestación del servicio:');
+  antes.push(restaurante.direccion_entrega || restaurante.direccion || '-');
+  antes.push(separador());
+
+  if (restaurante.numero_resolucion_dian) {
+    const vigenciaDesde = formatearFecha(restaurante.fecha_resolucion_dian);
+    const vigenciaHasta = restaurante.fecha_resolucion_dian
+      ? formatearFecha(sumarMesesUTC(restaurante.fecha_resolucion_dian, 24))
+      : '';
+    antes.push(`FEV. Res. DIAN ${restaurante.numero_resolucion_dian}, del ${vigenciaDesde} hasta ${vigenciaHasta}`);
   }
-  lineas.push('');
 
-  lineas.push('Fabricante del Software: Comandia SAS');
-  lineas.push('Software: Comandia POS v1.0');
-  lineas.push('');
+  const qrPayload = [
+    `NumFac:${factura.numero_factura}`,
+    `NitFac:${formatearNit(restaurante.nit)}`,
+    `FecFac:${formatearFechaHoraISO(factura.fecha_emision)}`,
+    `ValFac:${factura.total}`,
+    `CUFE:${factura.cufe}`,
+  ].join('|');
+  const qrDataUrl = await generarQR(qrPayload);
 
-  lineas.push(`CUFE: ${factura.cufe}`);
-  lineas.push('');
-  lineas.push(centrar('[CÓDIGO QR]'));
-  lineas.push('');
+  const despues = [];
+  despues.push(`FP: ${factura.numero_consecutivo}`);
+  despues.push(`Prefijo ${restaurante.prefijo_factura || 'FE'} del No. ${restaurante.factura_desde ?? 1} al ${restaurante.factura_hasta ?? 99999}`);
+  despues.push(`CUFE: ${factura.cufe}`);
+  if (restaurante.res_grandes_contribuyentes) {
+    despues.push(`SOMOS GRANDES CONTRIBUYENTES SEGÚN RES. ${restaurante.res_grandes_contribuyentes}`);
+  }
+  despues.push(separador());
+
+  despues.push(`Proveedor Tecnológico: ${PROVEEDOR_TECNOLOGICO.razon_social}`);
+  despues.push(`Nombre del SW: ${PROVEEDOR_TECNOLOGICO.nombre_software}`);
+  despues.push(`NIT: ${PROVEEDOR_TECNOLOGICO.nit}`);
+  despues.push('');
+
+  despues.push(centrar('Representación Gráfica de Factura'));
+  despues.push(centrar('electrónica de Venta'));
 
   if (restaurante.mensaje_ticket) {
-    lineas.push(centrar(restaurante.mensaje_ticket));
-    lineas.push('');
+    despues.push('');
+    despues.push(centrar(restaurante.mensaje_ticket));
   }
-  lineas.push(centrar('¡Gracias por su visita!'));
-  lineas.push(separador('═'));
 
-  return envolverHTML(lineas.join('\n'), { titulo: `Factura ${factura.numero_factura}` });
+  const qrHTML = qrDataUrl
+    ? `<img src="${qrDataUrl}" width="96" height="96" alt="Código QR de la factura electrónica" style="display:block;margin:6px auto;" />`
+    : `<div style="text-align:center;margin:6px 0;">[CÓDIGO QR]</div>`;
+  const bloque = (texto) =>
+    `<pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre>`;
+
+  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(`Factura ${factura.numero_factura}`)}">${bloque(antes.join('\n'))}${qrHTML}${bloque(despues.join('\n'))}</div>`;
 }
 
 function generarHTMLPrecuenta(pedido, restaurante) {

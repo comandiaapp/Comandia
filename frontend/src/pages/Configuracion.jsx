@@ -204,6 +204,12 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
   const [prefijoFactura, setPrefijoFactura] = useState(restaurante.prefijo_factura || 'FE');
   const [facturaDesde, setFacturaDesde] = useState(restaurante.factura_desde ?? 1);
   const [facturaHasta, setFacturaHasta] = useState(restaurante.factura_hasta ?? 99999);
+  const [agenteRetenedorIva, setAgenteRetenedorIva] = useState(restaurante.agente_retenedor_iva ?? false);
+  const [micronegocio, setMicronegocio] = useState(restaurante.micronegocio_regimen_simple ?? false);
+  const [referenciaSede, setReferenciaSede] = useState(restaurante.referencia_sede || '');
+  const [direccionEntrega, setDireccionEntrega] = useState(restaurante.direccion_entrega || '');
+  const [resGrandesContribuyentes, setResGrandesContribuyentes] = useState(restaurante.res_grandes_contribuyentes || '');
+  const [claveTecnicaDian, setClaveTecnicaDian] = useState(restaurante.clave_tecnica_dian || '');
   const [guardando, setGuardando] = useState(false);
 
   const ivaEfectivo = ivaPreset === 'personalizado' ? Number(ivaPersonalizado || 0) : Number(ivaPreset);
@@ -221,6 +227,12 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
       prefijo_factura: prefijoFactura || 'FE',
       factura_desde: Number(facturaDesde) || 1,
       factura_hasta: Number(facturaHasta) || 99999,
+      agente_retenedor_iva: agenteRetenedorIva,
+      micronegocio_regimen_simple: micronegocio,
+      referencia_sede: referenciaSede || null,
+      direccion_entrega: direccionEntrega || null,
+      res_grandes_contribuyentes: resGrandesContribuyentes || null,
+      clave_tecnica_dian: claveTecnicaDian || null,
     });
     setGuardando(false);
   }
@@ -338,6 +350,48 @@ function TabFiscal({ restaurante, onGuardar, esAdmin }) {
           />
         </Campo>
       </div>
+      <Campo label="Clave técnica DIAN">
+        <input
+          value={claveTecnicaDian}
+          onChange={(e) => setClaveTecnicaDian(e.target.value)}
+          disabled={!esAdmin}
+          className="input"
+          placeholder="Entregada por la DIAN al habilitarse como facturador electrónico"
+        />
+      </Campo>
+
+      <p className="pt-2 text-sm font-semibold text-[var(--text-primary)]">Etiquetas de responsabilidad tributaria</p>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={agenteRetenedorIva} onChange={(e) => setAgenteRetenedorIva(e.target.checked)} disabled={!esAdmin} />
+          Agente retenedor de IVA
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={micronegocio} onChange={(e) => setMicronegocio(e.target.checked)} disabled={!esAdmin} />
+          Micronegocio (régimen simple)
+        </label>
+      </div>
+      <Campo label="Resolución de grandes contribuyentes (opcional)">
+        <input
+          value={resGrandesContribuyentes}
+          onChange={(e) => setResGrandesContribuyentes(e.target.value)}
+          disabled={!esAdmin}
+          className="input"
+          placeholder="Solo si el negocio es gran contribuyente"
+        />
+      </Campo>
+      <Campo label="Referencia / sede">
+        <input value={referenciaSede} onChange={(e) => setReferenciaSede(e.target.value)} disabled={!esAdmin} className="input" placeholder="Ej: Sede Centro" />
+      </Campo>
+      <Campo label="Lugar de entrega del bien o servicio">
+        <input
+          value={direccionEntrega}
+          onChange={(e) => setDireccionEntrega(e.target.value)}
+          disabled={!esAdmin}
+          className="input"
+          placeholder="Si es distinto a la dirección del negocio"
+        />
+      </Campo>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
         <p className="mb-2 text-xs uppercase tracking-wide text-[var(--text-secondary)]">Vista previa del encabezado de factura</p>

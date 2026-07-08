@@ -601,3 +601,20 @@ CREATE INDEX IF NOT EXISTS idx_pagos_estado ON pagos(estado);
 -- el DEFAULT (que apuntaba a la sequence del SERIAL); ahora pedidoModel.crear()
 -- calcula el consecutivo con MAX(numero_global)+1 filtrado por restaurante_id.
 ALTER TABLE pedidos ALTER COLUMN numero_global DROP DEFAULT;
+
+-- Campos adicionales para la representación gráfica completa de la factura
+-- electrónica DIAN: etiquetas de responsabilidad tributaria más allá de
+-- IVA/INC, datos de sede/entrega, y la clave técnica que la DIAN entrega al
+-- habilitar el NIT como facturador electrónico (necesaria para que el CUFE
+-- sea válido ante la DIAN, ver facturaModel.generarCUFE).
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS agente_retenedor_iva BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS micronegocio_regimen_simple BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS referencia_sede VARCHAR(255);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS direccion_entrega TEXT;
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS res_grandes_contribuyentes VARCHAR(50);
+ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS clave_tecnica_dian VARCHAR(255);
+
+-- Fecha en que la DIAN valida la factura (queda NULL hasta que exista una
+-- integración real de envío a la DIAN; hoy este sistema solo emite la
+-- representación gráfica).
+ALTER TABLE facturas ADD COLUMN IF NOT EXISTS fecha_validacion_dian TIMESTAMPTZ;

@@ -22,6 +22,12 @@ const CAMPOS_ACTUALIZABLES_CONFIGURACION = [
   'prefijo_factura',
   'factura_desde',
   'factura_hasta',
+  'agente_retenedor_iva',
+  'micronegocio_regimen_simple',
+  'referencia_sede',
+  'direccion_entrega',
+  'res_grandes_contribuyentes',
+  'clave_tecnica_dian',
 ];
 
 async function crear(

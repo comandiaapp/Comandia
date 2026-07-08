@@ -12,9 +12,67 @@ class PedidoNoPagadoError extends Error {
   }
 }
 
-function generarCUFESimulado({ restauranteId, numeroFactura, fecha, total }) {
-  const base = `${restauranteId}|${numeroFactura}|${fecha}|${total}|${crypto.randomBytes(8).toString('hex')}`;
-  return crypto.createHash('sha256').update(base).digest('hex').toUpperCase();
+function soloDigitos(texto) {
+  return String(texto || '').replace(/\D/g, '');
+}
+
+// El NitOFE del CUFE va sin dígito de verificación (DV): admite "900123456"
+// o "900123456-7", en ambos casos se usa solo la parte numérica principal.
+function nitSinDV(nit) {
+  const match = String(nit || '').match(/^(\d+)-?\d?$/);
+  return match ? match[1] : soloDigitos(nit);
+}
+
+function decimalDIAN(valor) {
+  return (Math.round(Number(valor) * 100) / 100).toFixed(2);
+}
+
+function fechaHoraBogota(fecha) {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(fecha)
+    .reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+  return { fecFac: `${partes.year}-${partes.month}-${partes.day}`, horaFac: `${partes.hour}:${partes.minute}:${partes.second}-05:00` };
+}
+
+// Fórmula oficial de la DIAN (Anexo Técnico Factura Electrónica de Venta)
+// para el CUFE: SHA-384 sobre la concatenación de estos campos en este
+// orden y formato exactos. impuestoPorcentaje === 8 es el Impuesto Nacional
+// al Consumo (código 04); cualquier otro valor se trata como IVA (código
+// 03 -ICA- siempre queda en 0 porque este sistema no lo maneja).
+// 'clave_tecnica_dian' la entrega la DIAN al habilitar el NIT como
+// facturador electrónico; sin ella el CUFE sigue siendo determinístico
+// (mismos datos → mismo hash) pero queda en TipoAmbiente "2" (pruebas), ya
+// que no hay forma de que la DIAN lo valide sin la clave real.
+function generarCUFE({ restaurante, numeroFactura, fechaEmision, subtotal, impuestoPorcentaje, impuestoMonto, total, nitCliente }) {
+  const { fecFac, horaFac } = fechaHoraBogota(fechaEmision);
+  const esINC = Number(impuestoPorcentaje) === 8;
+  const claveTecnica = restaurante.clave_tecnica_dian || '';
+
+  const campos = [
+    String(numeroFactura).replace(/\s/g, ''),
+    fecFac,
+    horaFac,
+    decimalDIAN(subtotal),
+    '01', decimalDIAN(esINC ? 0 : impuestoMonto),
+    '04', decimalDIAN(esINC ? impuestoMonto : 0),
+    '03', decimalDIAN(0),
+    decimalDIAN(total),
+    nitSinDV(restaurante.nit),
+    soloDigitos(nitCliente) || '222222222222',
+    claveTecnica,
+    claveTecnica ? '1' : '2',
+  ];
+
+  return crypto.createHash('sha384').update(campos.join('')).digest('hex');
 }
 
 async function obtenerPorPedido(pedidoId, restauranteId) {
@@ -122,11 +180,15 @@ async function crear(pedidoId, restauranteId, datosCliente = {}) {
     const totalConPropina = total + (propinaCobrada > 0 ? propinaCobrada : propinaSugerida);
 
     const fechaEmision = new Date();
-    const cufe = generarCUFESimulado({
-      restauranteId,
+    const cufe = generarCUFE({
+      restaurante,
       numeroFactura,
-      fecha: fechaEmision.toISOString(),
+      fechaEmision,
+      subtotal,
+      impuestoPorcentaje,
+      impuestoMonto,
       total,
+      nitCliente: datosCliente.nit_cliente || '222222222222',
     });
 
     const { rows } = await client.query(

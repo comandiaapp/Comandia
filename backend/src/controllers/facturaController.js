@@ -32,7 +32,7 @@ async function generar(req, res) {
     ]);
     const vendedor = await obtenerVendedor(pedido);
 
-    const html = generarHTMLTicket(factura, restaurante, pedido, vendedor);
+    const html = await generarHTMLTicket(factura, restaurante, pedido, vendedor);
     return ok(res, { factura, html }, 201);
   } catch (err) {
     if (err.pedidoNoPagado) {
@@ -56,7 +56,7 @@ async function obtenerPorPedido(req, res) {
     ]);
     const vendedor = await obtenerVendedor(pedido);
 
-    const html = generarHTMLTicket(factura, restaurante, pedido, vendedor);
+    const html = await generarHTMLTicket(factura, restaurante, pedido, vendedor);
     return ok(res, { factura, html });
   } catch (err) {
     console.error('Error al obtener la factura del pedido:', err);
@@ -92,7 +92,7 @@ async function obtenerPorId(req, res) {
     ]);
     const vendedor = await obtenerVendedor(pedido);
 
-    const html = generarHTMLTicket(factura, restaurante, pedido, vendedor);
+    const html = await generarHTMLTicket(factura, restaurante, pedido, vendedor);
     return ok(res, { factura, html });
   } catch (err) {
     console.error('Error al obtener la factura:', err);

@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { getCategorias, crearCategoria, actualizarCategoria, eliminarCategoria } from '../utils/categorias';
 import { getProductos, crearProducto, actualizarProducto, eliminarProducto } from '../utils/productos';
 import { formatearPrecio } from '../utils/formato';
+import { redimensionarImagen } from '../utils/imagenLocal';
 
 const TIPOS_PRODUCTO = [
   { value: 'producto', label: 'Producto' },
@@ -295,8 +296,12 @@ function Menu() {
                     key={producto.id}
                     className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)]"
                   >
-                    <div className="flex h-32 items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
-                      <span className="text-xs">Sin imagen</span>
+                    <div className="flex h-32 items-center justify-center overflow-hidden bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+                      {producto.imagen_url ? (
+                        <img src={producto.imagen_url} alt={producto.nombre} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-xs">Sin imagen</span>
+                      )}
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-2">
@@ -439,6 +444,30 @@ function FormularioProducto({ producto, categorias, puedeVerCosto, onGuardar, on
   const [disponiblePara, setDisponiblePara] = useState(producto?.disponible_para || 'todos');
   const [tiempoPreparacion, setTiempoPreparacion] = useState(producto?.tiempo_preparacion ?? '');
   const [guardando, setGuardando] = useState(false);
+  const [imagenUrl, setImagenUrl] = useState(producto?.imagen_url || '');
+  const [imagenBase64, setImagenBase64] = useState(null); // null = sin cambios; '' = quitar; string = nueva foto
+  const [procesandoImagen, setProcesandoImagen] = useState(false);
+
+  async function handleArchivoImagen(e) {
+    const archivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!archivo) return;
+    setProcesandoImagen(true);
+    try {
+      const dataUrl = await redimensionarImagen(archivo);
+      setImagenBase64(dataUrl);
+      setImagenUrl(dataUrl);
+    } catch {
+      toast.error('No se pudo procesar la imagen');
+    } finally {
+      setProcesandoImagen(false);
+    }
+  }
+
+  function handleQuitarImagen() {
+    setImagenBase64('');
+    setImagenUrl('');
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -452,6 +481,7 @@ function FormularioProducto({ producto, categorias, puedeVerCosto, onGuardar, on
       tipo,
       disponible_para: disponiblePara,
       tiempo_preparacion: tiempoPreparacion === '' ? null : Number(tiempoPreparacion),
+      ...(imagenBase64 !== null ? { imagen_base64: imagenBase64 } : {}),
     });
     setGuardando(false);
   }
@@ -468,6 +498,35 @@ function FormularioProducto({ producto, categorias, puedeVerCosto, onGuardar, on
           className="input"
           rows={2}
         />
+      </Campo>
+
+      <Campo label="Foto">
+        <div className="flex items-center gap-3">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
+            {imagenUrl ? (
+              <img src={imagenUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-[10px] text-[var(--text-secondary)]">Sin imagen</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="cursor-pointer text-sm font-medium text-[var(--accent)]">
+              {procesandoImagen ? 'Procesando...' : imagenUrl ? 'Cambiar foto' : 'Subir foto'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleArchivoImagen}
+                disabled={procesandoImagen}
+                className="hidden"
+              />
+            </label>
+            {imagenUrl && (
+              <button type="button" onClick={handleQuitarImagen} className="text-left text-xs text-[var(--error)]">
+                Quitar foto
+              </button>
+            )}
+          </div>
+        </div>
       </Campo>
 
       <div className="grid grid-cols-2 gap-4">

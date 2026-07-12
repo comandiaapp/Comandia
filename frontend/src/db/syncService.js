@@ -157,6 +157,21 @@ class SyncService {
       return;
     }
 
+    if (item.tabla === 'productos') {
+      const { id_local, ...campos } = datos;
+
+      if (item.operacion === 'crear') {
+        const { data } = await api.post('/api/productos', campos);
+        await this.guardarMapeo('producto', id_local, data.datos.producto.id);
+      } else if (item.operacion === 'actualizar') {
+        const idRemoto = await this.resolverId('producto', id_local);
+        await api.put(`/api/productos/${idRemoto}`, campos);
+      }
+
+      await localDb.ejecutar(`UPDATE productos_cache SET sincronizado = 1 WHERE id = ?`, [id_local]);
+      return;
+    }
+
     if (item.tabla === 'mesas' && item.operacion === 'cambiar_estado') {
       await api.patch(`/api/mesas/${datos.mesa_id}/estado`, { estado: datos.estado });
     }
@@ -171,7 +186,10 @@ class SyncService {
         api.get('/api/areas'),
       ]);
 
-      await localDb.ejecutar('DELETE FROM productos_cache');
+      // Los productos creados/editados offline y aún no sincronizados
+      // (sincronizado = 0) no se tocan acá — si no, se perderían antes de
+      // que la cola alcance a subirlos.
+      await localDb.ejecutar('DELETE FROM productos_cache WHERE sincronizado = 1');
       for (const p of productos.data.datos.productos) {
         await localDb.ejecutar(`INSERT OR REPLACE INTO productos_cache (id, datos) VALUES (?, ?)`, [
           p.id,

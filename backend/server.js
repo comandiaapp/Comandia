@@ -23,13 +23,15 @@ app.use(
   })
 );
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', app: 'Comandia', version: '1.0.0' });
 });
 
 app.use('/api', routes);
+
+app.use('/uploads/productos', express.static(env.uploadsDir));
 
 // Servir frontend compilado en producción
 if (env.nodeEnv === 'production') {

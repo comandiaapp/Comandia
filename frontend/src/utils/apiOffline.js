@@ -664,10 +664,72 @@ async function hMarcarEntregado(match) {
   return { pedido: await construirPedido(pedidoId) };
 }
 
+async function hCrearProducto(match, body) {
+  const { nombre, precio } = body;
+  if (!nombre || precio === undefined || precio === null) {
+    throw new OfflineApiError('El nombre y el precio del producto son obligatorios', 400);
+  }
+
+  const id = uuidv4();
+  const ahora = new Date().toISOString();
+  const producto = {
+    id,
+    categoria_id: body.categoria_id ?? null,
+    nombre,
+    descripcion: body.descripcion ?? null,
+    imagen_url: body.imagen_base64 || null,
+    precio: Number(precio),
+    costo: body.costo ?? null,
+    tipo: body.tipo || 'producto',
+    disponible: body.disponible ?? true,
+    disponible_para: body.disponible_para || 'todos',
+    tiempo_preparacion: body.tiempo_preparacion ?? null,
+    orden: body.orden ?? 0,
+    activo: true,
+    modificadores: [],
+    created_at: ahora,
+    updated_at: ahora,
+  };
+
+  // ponytail: si este producto se pide en un pedido antes de sincronizar, su
+  // producto_id local no se remapea en pedido_items (no hay id_map para esa
+  // tabla) — caso raro (crear producto y venderlo offline en el mismo turno
+  // antes de reconectar); ampliar si llega a pasar en la práctica.
+  await localDb.ejecutar(
+    `INSERT INTO productos_cache (id, datos, sincronizado, creado_offline) VALUES (?, ?, 0, 1)`,
+    [id, JSON.stringify(producto)]
+  );
+  await encolar('productos', 'crear', { id_local: id, ...body });
+
+  return { producto };
+}
+
+async function hActualizarProducto(match, body) {
+  const id = match[1];
+  const fila = await localDb.consultarUno(`SELECT datos FROM productos_cache WHERE id = ?`, [id]);
+  if (!fila) throw new OfflineApiError('Producto no encontrado');
+
+  const producto = { ...JSON.parse(fila.datos), ...body, updated_at: new Date().toISOString() };
+  if (body.imagen_base64 !== undefined) {
+    producto.imagen_url = body.imagen_base64 || null;
+  }
+  delete producto.imagen_base64;
+
+  await localDb.ejecutar(`UPDATE productos_cache SET datos = ?, sincronizado = 0 WHERE id = ?`, [
+    JSON.stringify(producto),
+    id,
+  ]);
+  await encolar('productos', 'actualizar', { id_local: id, ...body });
+
+  return { producto };
+}
+
 // El orden importa: las rutas más específicas van antes que los patrones
 // genéricos de un solo parámetro (p. ej. "/mesas/plano" antes que "/mesas/:id").
 const RUTAS = [
   { metodo: 'get', re: /^\/api\/productos$/, h: hProductos },
+  { metodo: 'post', re: /^\/api\/productos$/, h: hCrearProducto },
+  { metodo: 'put', re: /^\/api\/productos\/([^/]+)$/, h: hActualizarProducto },
   { metodo: 'get', re: /^\/api\/categorias$/, h: hCategorias },
   { metodo: 'get', re: /^\/api\/areas$/, h: hAreas },
   { metodo: 'get', re: /^\/api\/mesas\/plano$/, h: hPlano },

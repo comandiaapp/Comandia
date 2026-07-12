@@ -28,5 +28,8 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Fotos de producto subidas en desarrollo local (en prod viven en el volumen de Railway)
+backend/uploads/
+
 # Railway y otros
 .railway/

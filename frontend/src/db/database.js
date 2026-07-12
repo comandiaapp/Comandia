@@ -125,6 +125,7 @@ class LocalDatabase {
       for (const sql of ESQUEMA) {
         await this.db.execute(sql);
       }
+      await this._migrar();
       return this;
     }
 
@@ -137,9 +138,27 @@ class LocalDatabase {
     for (const sql of ESQUEMA) {
       this.db.run(sql);
     }
+    await this._migrar();
     await this.guardar();
 
     return this;
+  }
+
+  // SQLite (ambos motores) no soporta ADD COLUMN IF NOT EXISTS de forma
+  // portable entre sqlx (Tauri) y sql.js; se intenta agregar y se ignora el
+  // error si la columna ya existe.
+  async _migrar() {
+    const alteraciones = [
+      `ALTER TABLE productos_cache ADD COLUMN sincronizado INTEGER DEFAULT 1`,
+      `ALTER TABLE productos_cache ADD COLUMN creado_offline INTEGER DEFAULT 0`,
+    ];
+    for (const sql of alteraciones) {
+      try {
+        await this.ejecutar(sql);
+      } catch (err) {
+        if (!/duplicate column/i.test(err.message || '')) throw err;
+      }
+    }
   }
 
   // En Tauri la persistencia es nativa (archivo comandia.db); guardar() solo

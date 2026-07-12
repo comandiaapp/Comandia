@@ -7,6 +7,7 @@ import Campo from '../components/Campo';
 import Modal from '../components/Modal';
 import BotonesFormulario from '../components/BotonesFormulario';
 import { useAuth } from '../context/AuthContext';
+import { redimensionarImagen } from '../utils/imagenLocal';
 import {
   getConfiguracion,
   actualizarConfiguracion,
@@ -108,6 +109,8 @@ function Configuracion() {
 function TabInformacion({ restaurante, onGuardar, esAdmin }) {
   const [nombre, setNombre] = useState(restaurante.nombre || '');
   const [logoUrl, setLogoUrl] = useState(restaurante.logo_url || '');
+  const [logoBase64, setLogoBase64] = useState(null); // null = sin cambios; '' = quitar; string = nuevo logo
+  const [procesandoLogo, setProcesandoLogo] = useState(false);
   const [nit, setNit] = useState(restaurante.nit || '');
   const [regimen, setRegimen] = useState(restaurante.regimen || 'simplificado');
   const [telefono, setTelefono] = useState(restaurante.telefono || '');
@@ -116,32 +119,75 @@ function TabInformacion({ restaurante, onGuardar, esAdmin }) {
   const [departamento, setDepartamento] = useState(restaurante.departamento || '');
   const [guardando, setGuardando] = useState(false);
 
+  async function handleArchivoLogo(e) {
+    const archivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!archivo) return;
+    setProcesandoLogo(true);
+    try {
+      const dataUrl = await redimensionarImagen(archivo);
+      setLogoBase64(dataUrl);
+      setLogoUrl(dataUrl);
+    } catch {
+      toast.error('No se pudo procesar el logo');
+    } finally {
+      setProcesandoLogo(false);
+    }
+  }
+
+  function handleQuitarLogo() {
+    setLogoBase64('');
+    setLogoUrl('');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setGuardando(true);
     await onGuardar({
       nombre,
-      logo_url: logoUrl || null,
       nit: nit || null,
       regimen,
       telefono: telefono || null,
       direccion: direccion || null,
       ciudad: ciudad || null,
       departamento: departamento || null,
+      ...(logoBase64 !== null ? { logo_base64: logoBase64 } : {}),
     });
+    setLogoBase64(null);
     setGuardando(false);
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Campo label="Logo (URL)">
-        <input
-          value={logoUrl}
-          onChange={(e) => setLogoUrl(e.target.value)}
-          disabled={!esAdmin}
-          className="input"
-          placeholder="https://..."
-        />
+      <Campo label="Logo">
+        <div className="flex items-center gap-3">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-secondary)]">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-[10px] text-[var(--text-secondary)]">Sin logo</span>
+            )}
+          </div>
+          {esAdmin && (
+            <div className="flex flex-col gap-1">
+              <label className="cursor-pointer text-sm font-medium text-[var(--accent)]">
+                {procesandoLogo ? 'Procesando...' : logoUrl ? 'Cambiar logo' : 'Subir logo'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleArchivoLogo}
+                  disabled={procesandoLogo}
+                  className="hidden"
+                />
+              </label>
+              {logoUrl && (
+                <button type="button" onClick={handleQuitarLogo} className="text-left text-xs text-[var(--error)]">
+                  Quitar logo
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </Campo>
       <Campo label="Nombre del restaurante">
         <input required value={nombre} onChange={(e) => setNombre(e.target.value)} disabled={!esAdmin} className="input" />

@@ -5,6 +5,7 @@ const pool = require('../config/database');
 const restauranteModel = require('../models/restauranteModel');
 const usuarioModel = require('../models/usuarioModel');
 const { ok, error } = require('../utils/respuestas');
+const { guardarImagenLogo, eliminarImagenLogo } = require('../utils/imagenRestaurante');
 
 const SALT_ROUNDS = 12;
 const PASSWORD_TEMPORAL = 'Comandia2024';
@@ -41,6 +42,7 @@ async function actualizarConfiguracion(req, res) {
     porcentaje_propina_sugerida,
     factura_desde,
     factura_hasta,
+    logo_base64,
   } = req.body;
 
   if (regimen !== undefined && !REGIMENES_VALIDOS.includes(regimen)) {
@@ -67,12 +69,25 @@ async function actualizarConfiguracion(req, res) {
   }
 
   try {
-    const restaurante = await restauranteModel.actualizarConfiguracion(req.usuario.restauranteId, req.body);
+    const datos = { ...req.body };
+    delete datos.logo_base64;
+
+    if (logo_base64) {
+      datos.logo_url = await guardarImagenLogo(req.usuario.restauranteId, logo_base64, req);
+    } else if (logo_base64 === '') {
+      datos.logo_url = null;
+      eliminarImagenLogo(req.usuario.restauranteId);
+    }
+
+    const restaurante = await restauranteModel.actualizarConfiguracion(req.usuario.restauranteId, datos);
     if (!restaurante) {
       return error(res, 'Restaurante no encontrado', 404);
     }
     return ok(res, { restaurante });
   } catch (err) {
+    if (err.imagenInvalida) {
+      return error(res, err.message, 400);
+    }
     console.error('Error al actualizar la configuración del restaurante:', err);
     return error(res, 'No se pudo actualizar la configuración del restaurante', 500);
   }

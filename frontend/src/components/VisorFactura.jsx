@@ -10,7 +10,7 @@ function VisorFactura({ titulo = 'Factura', html, onClose, textoCerrar = 'Cerrar
           body * { visibility: hidden; }
           #ticket-imprimible, #ticket-imprimible * { visibility: visible; }
           #ticket-imprimible { position: absolute; left: 0; top: 0; }
-          @page { margin: 0; }
+          @page { size: 80mm auto; margin: 0; }
         }
       `}</style>
 

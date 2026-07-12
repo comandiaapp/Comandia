@@ -176,8 +176,15 @@ function formatearNit(nit) {
   return verificacion ? `${numeroFormateado}-${verificacion}` : numeroFormateado;
 }
 
-function envolverHTML(texto, { titulo }) {
-  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(titulo)}"><pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre></div>`;
+// Logo circular en el encabezado del ticket (igual que factura y precuenta):
+// si el restaurante no tiene logo cargado, no se imprime nada en su lugar.
+function logoHTML(logoUrl) {
+  if (!logoUrl) return '';
+  return `<img src="${escaparHTML(logoUrl)}" alt="" style="display:block; width:60px; height:60px; margin:0 auto 4px; border-radius:50%; object-fit:cover;" />`;
+}
+
+function envolverHTML(texto, { titulo, logoUrl }) {
+  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(titulo)}">${logoHTML(logoUrl)}<pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre></div>`;
 }
 
 // Igual formato de fecha/hora que usa facturaModel.generarCUFE (para que el
@@ -397,7 +404,7 @@ async function generarHTMLTicket(factura, restaurante, pedido) {
   const bloque = (texto) =>
     `<pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre>`;
 
-  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(`Factura ${factura.numero_factura}`)}">${bloque(antes.join('\n'))}${qrHTML}${bloque(despues.join('\n'))}</div>`;
+  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(`Factura ${factura.numero_factura}`)}">${logoHTML(restaurante.logo_url)}${bloque(antes.join('\n'))}${qrHTML}${bloque(despues.join('\n'))}</div>`;
 }
 
 function generarHTMLPrecuenta(pedido, restaurante) {
@@ -442,7 +449,7 @@ function generarHTMLPrecuenta(pedido, restaurante) {
   lineas.push(centrar('Esta pre-cuenta no reemplaza la'));
   lineas.push(centrar('factura electrónica de venta.'));
 
-  return envolverHTML(lineas.join('\n'), { titulo: 'Pre-cuenta' });
+  return envolverHTML(lineas.join('\n'), { titulo: 'Pre-cuenta', logoUrl: restaurante.logo_url });
 }
 
 module.exports = { generarHTMLTicket, generarHTMLPrecuenta };

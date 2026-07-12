@@ -32,6 +32,7 @@ app.get('/health', (req, res) => {
 app.use('/api', routes);
 
 app.use('/uploads/productos', express.static(env.uploadsDir));
+app.use('/uploads/restaurantes', express.static(path.join(env.uploadsDir, 'restaurantes')));
 
 // Servir frontend compilado en producción
 if (env.nodeEnv === 'production') {

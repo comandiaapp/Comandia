@@ -25,6 +25,7 @@ import {
   actualizarArea,
 } from '../utils/mesas';
 import { getPedidoPorMesa, pedirCuentaPedido } from '../utils/pedidos';
+import { formatearPrecio } from '../utils/formato';
 
 const COLOR_ESTADO = {
   libre: 'var(--success)',
@@ -122,6 +123,10 @@ function detectarYAvisarNuevosListos(mesasFlat, conocidosRef, primerCargaRef) {
 
 function debeMostrarBadgeListo(mesa, pedidosVistos) {
   return mesa.pedido_estado === 'listo' && Boolean(mesa.pedido_id) && !pedidosVistos.has(mesa.pedido_id);
+}
+
+function montoMesaVisible(mesa) {
+  return (mesa.estado === 'ocupada' || mesa.estado === 'cuenta_pedida') && mesa.pedido_total != null;
 }
 
 function tienePosicionGuardada(mesa) {
@@ -960,6 +965,9 @@ function MesaPosicionada({ mesa, mostrarBadgeListo, onClick }) {
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}
       </span>
+      {montoMesaVisible(mesa) && (
+        <span className="text-[10px] font-semibold text-[var(--text-primary)]">{formatearPrecio(mesa.pedido_total)}</span>
+      )}
       {conCuentaPedida && mesa.cuenta_pedida_at && <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />}
     </button>
   );
@@ -998,6 +1006,9 @@ function TarjetaMesa({ mesa, mostrarBadgeListo, onClick }) {
       >
         {LABEL_ESTADO[mesa.estado] || mesa.estado}
       </span>
+      {montoMesaVisible(mesa) && (
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{formatearPrecio(mesa.pedido_total)}</span>
+      )}
       {conCuentaPedida && mesa.cuenta_pedida_at && <CronometroCuenta cuentaPedidaAt={mesa.cuenta_pedida_at} />}
     </button>
   );

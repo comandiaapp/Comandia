@@ -49,7 +49,7 @@ async function obtenerTodas(restauranteId, areaId) {
   // más de un pedido activo simultáneo para la misma mesa.
   const { rows } = await pool.query(
     `SELECT m.*, a.nombre AS area_nombre, p.id AS pedido_id, p.estado AS pedido_estado,
-            p.cuenta_pedida_at
+            p.cuenta_pedida_at, p.total AS pedido_total
      FROM mesas m
      LEFT JOIN areas a ON a.id = m.area_id
      LEFT JOIN pedidos p ON p.mesa_id = m.id AND p.estado = ANY($${i}::varchar[])

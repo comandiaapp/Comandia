@@ -300,11 +300,21 @@ async function hMesa(match) {
   return { mesa: JSON.parse(fila.datos) };
 }
 
+// El total cacheado en mesas_cache puede haber quedado desactualizado si la
+// mesa se abrió u obtuvo más ítems mientras el dispositivo estaba offline
+// (hCrearPedido/hAgregarItem no reescriben ese campo). Se recalcula en cada
+// lectura contra pedidos_local, igual que mesaModel.obtenerTodas online.
+async function conTotalPedidoActivo(mesa) {
+  if (mesa.estado !== 'ocupada' && mesa.estado !== 'cuenta_pedida') return mesa;
+  const pedido = await pedidoActivoDeMesa(mesa.id);
+  return pedido ? { ...mesa, pedido_total: Number(pedido.total) } : mesa;
+}
+
 async function hPlano() {
   const filasAreas = await localDb.consultar(`SELECT datos FROM areas_cache`);
   const areas = filasAreas.map((f) => JSON.parse(f.datos)).filter((a) => !a.es_remota);
   const filasMesas = await localDb.consultar(`SELECT datos FROM mesas_cache`);
-  const mesas = filasMesas.map((f) => JSON.parse(f.datos));
+  const mesas = await Promise.all(filasMesas.map((f) => conTotalPedidoActivo(JSON.parse(f.datos))));
   const plano = areas.map((area) => ({ ...area, mesas: mesas.filter((m) => m.area_id === area.id) }));
   const sinArea = mesas.filter((m) => !m.area_id);
   if (sinArea.length > 0) plano.push({ id: null, nombre: 'Sin área', mesas: sinArea });

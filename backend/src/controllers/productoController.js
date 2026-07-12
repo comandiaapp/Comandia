@@ -105,6 +105,11 @@ async function obtener(req, res) {
 
 async function actualizar(req, res) {
   try {
+    const existente = await productoModel.obtenerPorId(req.params.id, req.usuario.restauranteId);
+    if (!existente) {
+      return error(res, 'Producto no encontrado', 404);
+    }
+
     const { imagen_base64, ...datos } = req.body;
 
     if (imagen_base64) {
@@ -115,9 +120,6 @@ async function actualizar(req, res) {
     }
 
     const producto = await productoModel.actualizar(req.params.id, req.usuario.restauranteId, datos);
-    if (!producto) {
-      return error(res, 'Producto no encontrado', 404);
-    }
     return ok(res, { producto: serializar(producto, req.usuario.rol) });
   } catch (err) {
     if (err.imagenInvalida) {

@@ -35,8 +35,9 @@ async function crear(req, res) {
     return error(res, 'El nombre y el precio del producto son obligatorios', 400);
   }
 
+  const id = uuidv4();
+
   try {
-    const id = uuidv4();
     const urlImagen = imagen_base64 ? await guardarImagenProducto(id, imagen_base64, req) : imagen_url;
 
     const producto = await productoModel.crear({
@@ -59,6 +60,9 @@ async function crear(req, res) {
   } catch (err) {
     if (err.imagenInvalida) {
       return error(res, err.message, 400);
+    }
+    if (imagen_base64) {
+      eliminarImagenProducto(id);
     }
     console.error('Error al crear producto:', err);
     return error(res, 'No se pudo crear el producto', 500);

@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const productoModel = require('../models/productoModel');
 const { ok, error } = require('../utils/respuestas');
+const { guardarImagenProducto, eliminarImagenProducto } = require('../utils/imagenProducto');
 
 // El costo (para calcular margen) nunca se devuelve a meseros ni cajeros.
 const ROLES_VEN_COSTO = ['admin', 'gerente'];
@@ -20,6 +21,7 @@ async function crear(req, res) {
     nombre,
     descripcion,
     imagen_url,
+    imagen_base64,
     precio,
     costo,
     tipo,
@@ -34,13 +36,16 @@ async function crear(req, res) {
   }
 
   try {
+    const id = uuidv4();
+    const urlImagen = imagen_base64 ? await guardarImagenProducto(id, imagen_base64, req) : imagen_url;
+
     const producto = await productoModel.crear({
-      id: uuidv4(),
+      id,
       restaurante_id: req.usuario.restauranteId,
       categoria_id,
       nombre,
       descripcion,
-      imagen_url,
+      imagen_url: urlImagen,
       precio,
       costo,
       tipo,
@@ -52,6 +57,9 @@ async function crear(req, res) {
 
     return ok(res, { producto: serializar(producto, req.usuario.rol) }, 201);
   } catch (err) {
+    if (err.imagenInvalida) {
+      return error(res, err.message, 400);
+    }
     console.error('Error al crear producto:', err);
     return error(res, 'No se pudo crear el producto', 500);
   }
@@ -93,12 +101,24 @@ async function obtener(req, res) {
 
 async function actualizar(req, res) {
   try {
-    const producto = await productoModel.actualizar(req.params.id, req.usuario.restauranteId, req.body);
+    const { imagen_base64, ...datos } = req.body;
+
+    if (imagen_base64) {
+      datos.imagen_url = await guardarImagenProducto(req.params.id, imagen_base64, req);
+    } else if (imagen_base64 === '') {
+      datos.imagen_url = null;
+      eliminarImagenProducto(req.params.id);
+    }
+
+    const producto = await productoModel.actualizar(req.params.id, req.usuario.restauranteId, datos);
     if (!producto) {
       return error(res, 'Producto no encontrado', 404);
     }
     return ok(res, { producto: serializar(producto, req.usuario.rol) });
   } catch (err) {
+    if (err.imagenInvalida) {
+      return error(res, err.message, 400);
+    }
     console.error('Error al actualizar producto:', err);
     return error(res, 'No se pudo actualizar el producto', 500);
   }

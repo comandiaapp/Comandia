@@ -444,13 +444,17 @@ function generarHTMLPrecuenta(pedido, restaurante) {
   const descuento = Number(pedido.descuento) || 0;
   const impuesto = Number(pedido.impuesto) || 0;
   const propina = Number(pedido.propina) || 0;
+  const costoDomicilio = Number(pedido.costo_domicilio) || 0;
   const total =
-    pedido.total !== undefined ? Number(pedido.total) : Math.max(0, subtotal - descuento + impuesto + propina);
+    pedido.total !== undefined
+      ? Number(pedido.total)
+      : Math.max(0, subtotal - descuento + impuesto + propina + costoDomicilio);
 
   lineas.push(fila('SUBTOTAL:', moneda(subtotal)));
   if (descuento > 0) lineas.push(fila('DESCUENTO:', `-${moneda(descuento)}`));
   if (impuesto > 0) lineas.push(fila('IMPUESTO:', moneda(impuesto)));
   if (propina > 0) lineas.push(fila('PROPINA:', moneda(propina)));
+  if (costoDomicilio > 0) lineas.push(fila('DOMICILIO:', moneda(costoDomicilio)));
   lineas.push(separador('═'));
   lineas.push(fila('TOTAL:', moneda(total)));
   lineas.push(separador('═'));

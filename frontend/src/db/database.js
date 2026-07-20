@@ -22,6 +22,7 @@ const ESQUEMA = [
     descuento REAL DEFAULT 0,
     impuesto REAL DEFAULT 0,
     propina REAL DEFAULT 0,
+    costo_domicilio REAL DEFAULT 0,
     notas TEXT,
     creado_offline INTEGER DEFAULT 0,
     sincronizado INTEGER DEFAULT 0,
@@ -151,6 +152,7 @@ class LocalDatabase {
     const alteraciones = [
       `ALTER TABLE productos_cache ADD COLUMN sincronizado INTEGER DEFAULT 1`,
       `ALTER TABLE productos_cache ADD COLUMN creado_offline INTEGER DEFAULT 0`,
+      `ALTER TABLE pedidos_local ADD COLUMN costo_domicilio REAL DEFAULT 0`,
     ];
     for (const sql of alteraciones) {
       try {

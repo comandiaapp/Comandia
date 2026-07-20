@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS pedidos (
   descuento DECIMAL(12,2) NOT NULL DEFAULT 0,
   impuesto DECIMAL(12,2) NOT NULL DEFAULT 0,
   propina DECIMAL(12,2) NOT NULL DEFAULT 0,
+  costo_domicilio DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
   pagado_con VARCHAR(20)
     CHECK (pagado_con IS NULL OR pagado_con IN ('efectivo', 'tarjeta', 'qr', 'nequi', 'transferencia', 'mixto')),
@@ -618,3 +619,10 @@ ALTER TABLE restaurantes ADD COLUMN IF NOT EXISTS clave_tecnica_dian VARCHAR(255
 -- integración real de envío a la DIAN; hoy este sistema solo emite la
 -- representación gráfica).
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS fecha_validacion_dian TIMESTAMPTZ;
+
+-- Costo de domicilio escrito a mano por el cajero al cobrar (no hay cálculo
+-- automático por distancia todavía). Se suma al total cobrado igual que
+-- descuento/impuesto/propina, pero no entra a la base fiscal de la factura
+-- DIAN (mismo tratamiento que la propina, ver facturaModel.crear) — solo se
+-- imprime como línea aparte en la precuenta.
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS costo_domicilio DECIMAL(12,2) NOT NULL DEFAULT 0;

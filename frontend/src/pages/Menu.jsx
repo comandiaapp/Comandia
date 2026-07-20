@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import BotonesFormulario from '../components/BotonesFormulario';
+import InputDinero from '../components/InputDinero';
 import { useAuth } from '../context/AuthContext';
 import { getCategorias, crearCategoria, actualizarCategoria, eliminarCategoria } from '../utils/categorias';
 import { getProductos, crearProducto, actualizarProducto, eliminarProducto } from '../utils/productos';
@@ -531,24 +532,11 @@ function FormularioProducto({ producto, categorias, puedeVerCosto, onGuardar, on
 
       <div className="grid grid-cols-2 gap-4">
         <Campo label="Precio">
-          <input
-            type="number"
-            step="0.01"
-            required
-            value={precio}
-            onChange={(e) => setPrecio(e.target.value)}
-            className="input"
-          />
+          <InputDinero required value={precio} onChange={setPrecio} className="input" />
         </Campo>
         {puedeVerCosto && (
           <Campo label="Costo">
-            <input
-              type="number"
-              step="0.01"
-              value={costo}
-              onChange={(e) => setCosto(e.target.value)}
-              className="input"
-            />
+            <InputDinero value={costo} onChange={setCosto} className="input" />
           </Campo>
         )}
       </div>

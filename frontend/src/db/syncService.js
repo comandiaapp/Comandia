@@ -115,6 +115,7 @@ class SyncService {
           descuento: datos.descuento,
           impuesto: datos.impuesto,
           propina: datos.propina,
+          costo_domicilio: datos.costo_domicilio,
         });
       } else if (item.operacion === 'cancelar') {
         await api.post(`/api/pedidos/${pedidoId}/cancelar`);

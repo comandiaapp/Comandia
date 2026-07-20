@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import BotonesFormulario from '../components/BotonesFormulario';
+import InputDinero from '../components/InputDinero';
 import { useAuth } from '../context/AuthContext';
 import { formatearPrecio } from '../utils/formato';
 import { formatearHora, fechaHoyBogota } from '../utils/fecha';
@@ -622,7 +623,7 @@ function FormularioTransaccion({ transaccion, categorias, onGuardar, onCancelar 
       </Campo>
       <div className="grid grid-cols-2 gap-4">
         <Campo label="Monto">
-          <input type="number" step="0.01" min="0.01" required value={monto} onChange={(e) => setMonto(e.target.value)} className="input" />
+          <InputDinero required value={monto} onChange={setMonto} className="input" />
         </Campo>
         <Campo label="Fecha">
           <input type="date" required value={fecha} max={hoyISO()} onChange={(e) => setFecha(e.target.value)} className="input" />
@@ -930,7 +931,7 @@ function FormularioEmpleado({ empleado, onGuardar, onCancelar }) {
         </select>
       </Campo>
       <Campo label="Pago del día">
-        <input type="number" step="0.01" min="0" value={pagoDia} onChange={(e) => setPagoDia(e.target.value)} className="input" />
+        <InputDinero value={pagoDia} onChange={setPagoDia} className="input" />
       </Campo>
       <Campo label="Notas">
         <textarea value={notas} onChange={(e) => setNotas(e.target.value)} className="input" rows={2} />

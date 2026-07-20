@@ -36,12 +36,15 @@ async function recalcularTotales(pedidoId, client) {
   const subtotalItems = Number(itemRows[0].subtotal_items);
 
   const { rows: pedidoRows } = await client.query(
-    `SELECT descuento, impuesto, propina FROM pedidos WHERE id = $1`,
+    `SELECT descuento, impuesto, propina, costo_domicilio FROM pedidos WHERE id = $1`,
     [pedidoId]
   );
-  const { descuento, impuesto, propina } = pedidoRows[0];
+  const { descuento, impuesto, propina, costo_domicilio } = pedidoRows[0];
 
-  const total = Math.max(0, subtotalItems - Number(descuento) + Number(impuesto) + Number(propina));
+  const total = Math.max(
+    0,
+    subtotalItems - Number(descuento) + Number(impuesto) + Number(propina) + Number(costo_domicilio)
+  );
 
   const { rows } = await client.query(
     `UPDATE pedidos SET subtotal = $1, total = $2, updated_at = now() WHERE id = $3 RETURNING *`,
@@ -499,7 +502,9 @@ async function cobrar(pedidoId, datos, restauranteId) {
     const descuento = datos.descuento !== undefined ? Number(datos.descuento) : Number(pedidoActual.descuento);
     const impuesto = datos.impuesto !== undefined ? Number(datos.impuesto) : Number(pedidoActual.impuesto);
     const propina = datos.propina !== undefined ? Number(datos.propina) : Number(pedidoActual.propina);
-    const total = Math.max(0, Number(pedidoActual.subtotal) - descuento + impuesto + propina);
+    const costoDomicilio =
+      datos.costo_domicilio !== undefined ? Number(datos.costo_domicilio) : Number(pedidoActual.costo_domicilio);
+    const total = Math.max(0, Number(pedidoActual.subtotal) - descuento + impuesto + propina + costoDomicilio);
 
     const montoRecibido = datos.monto_recibido !== undefined ? Number(datos.monto_recibido) : total;
     if (montoRecibido < total) {
@@ -510,13 +515,13 @@ async function cobrar(pedidoId, datos, restauranteId) {
 
     const { rows } = await client.query(
       `UPDATE pedidos
-       SET estado = 'pagado', descuento = $1, impuesto = $2, propina = $3, total = $4,
-           pagado_con = $5, monto_recibido = $6, cambio = $7, pagado_at = now(),
+       SET estado = 'pagado', descuento = $1, impuesto = $2, propina = $3, costo_domicilio = $4, total = $5,
+           pagado_con = $6, monto_recibido = $7, cambio = $8, pagado_at = now(),
            mesa_liberada_at = CASE WHEN mesa_id IS NOT NULL THEN now() ELSE mesa_liberada_at END,
            updated_at = now()
-       WHERE id = $8 AND restaurante_id = $9
+       WHERE id = $9 AND restaurante_id = $10
        RETURNING *`,
-      [descuento, impuesto, propina, total, datos.pagado_con, montoRecibido, cambio, pedidoId, restauranteId]
+      [descuento, impuesto, propina, costoDomicilio, total, datos.pagado_con, montoRecibido, cambio, pedidoId, restauranteId]
     );
     const pedido = rows[0];
 

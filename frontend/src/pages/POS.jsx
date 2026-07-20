@@ -16,6 +16,7 @@ import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import VisorFactura from '../components/VisorFactura';
+import InputDinero from '../components/InputDinero';
 import { useAuth } from '../context/AuthContext';
 import { getMesa } from '../utils/mesas';
 import { getCategorias } from '../utils/categorias';
@@ -112,6 +113,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
   const [descuentoValor, setDescuentoValor] = useState(0);
   const [impuesto, setImpuesto] = useState(0);
   const [propina, setPropina] = useState(0);
+  const [domicilio, setDomicilio] = useState(0);
 
   useEffect(() => {
     // React StrictMode monta el efecto dos veces en desarrollo; sin esta
@@ -321,6 +323,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
         descuento: descuentoMonto,
         impuesto: Number(impuesto || 0),
         propina: Number(propina || 0),
+        costo_domicilio: Number(domicilio || 0),
       });
       toast.success('¡Pedido cobrado!');
       setModalCobro(false);
@@ -353,6 +356,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
         descuento: descuentoMonto,
         impuesto: Number(impuesto || 0),
         propina: Number(propina || 0),
+        costo_domicilio: Number(domicilio || 0),
       });
       setVisorFactura({ titulo: 'Pre-cuenta', html, textoCerrar: 'Cerrar', alCerrar: () => {} });
     } catch {
@@ -372,7 +376,11 @@ function POS({ mesaId, onCerrar = () => {} }) {
   const itemsPendientes = pedido?.items?.filter((item) => item.estado === 'pendiente').length || 0;
   const descuentoMonto =
     descuentoModo === 'porcentaje' ? (subtotal * Number(descuentoValor || 0)) / 100 : Number(descuentoValor || 0);
-  const totalCalculado = Math.max(0, subtotal - descuentoMonto + Number(impuesto || 0) + Number(propina || 0));
+  const esMesaDomicilio = Boolean(mesa?.numero?.startsWith('Domicilio-'));
+  const totalCalculado = Math.max(
+    0,
+    subtotal - descuentoMonto + Number(impuesto || 0) + Number(propina || 0) + Number(domicilio || 0)
+  );
 
   const productosFiltrados = productos.filter((producto) => {
     const coincideCategoria = !categoriaActiva || producto.categoria_id === categoriaActiva;
@@ -443,37 +451,53 @@ function POS({ mesaId, onCerrar = () => {} }) {
                 <option value="monto">$</option>
                 <option value="porcentaje">%</option>
               </select>
-              <input
-                type="number"
-                min="0"
-                value={descuentoValor}
-                onChange={(e) => setDescuentoValor(e.target.value)}
-                className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-              />
+              {descuentoModo === 'monto' ? (
+                <InputDinero
+                  value={descuentoValor}
+                  onChange={setDescuentoValor}
+                  className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                />
+              ) : (
+                <input
+                  type="number"
+                  min="0"
+                  value={descuentoValor}
+                  onChange={(e) => setDescuentoValor(e.target.value)}
+                  className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                />
+              )}
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="text-[var(--text-secondary)]">Impuesto</span>
-            <input
-              type="number"
-              min="0"
+            <InputDinero
               value={impuesto}
-              onChange={(e) => setImpuesto(e.target.value)}
+              onChange={setImpuesto}
               className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
           </div>
 
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="text-[var(--text-secondary)]">Propina</span>
-            <input
-              type="number"
-              min="0"
+            <InputDinero
               value={propina}
-              onChange={(e) => setPropina(e.target.value)}
+              onChange={setPropina}
               className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
           </div>
+
+          {esMesaDomicilio && (
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-[var(--text-secondary)]">Domicilio</span>
+              <InputDinero
+                value={domicilio}
+                onChange={setDomicilio}
+                placeholder="0"
+                className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
             <span className="text-base font-semibold text-[var(--text-primary)]">TOTAL</span>
@@ -611,6 +635,7 @@ function POS({ mesaId, onCerrar = () => {} }) {
           descuentoMonto={descuentoMonto}
           impuesto={Number(impuesto || 0)}
           propina={Number(propina || 0)}
+          domicilio={Number(domicilio || 0)}
           total={totalCalculado}
           onAplicarPropinaSugerida={(monto) => setPropina(monto)}
           onImprimir={handleImprimirPrecuenta}
@@ -878,6 +903,7 @@ function ModalPrecuenta({
   descuentoMonto,
   impuesto,
   propina,
+  domicilio,
   total,
   onAplicarPropinaSugerida,
   onImprimir,
@@ -933,6 +959,12 @@ function ModalPrecuenta({
               )}
             </span>
           </div>
+          {domicilio > 0 && (
+            <div className="flex justify-between text-[var(--text-secondary)]">
+              <span>Domicilio</span>
+              <span>{formatearPrecio(domicilio)}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
@@ -1046,11 +1078,9 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
               Con propina 10%
             </button>
           </div>
-          <input
-            type="number"
-            min="0"
+          <InputDinero
             value={propina}
-            onChange={(e) => onCambiarPropina(e.target.value)}
+            onChange={onCambiarPropina}
             placeholder="Monto de propina personalizado"
             className="input mt-2"
           />
@@ -1089,15 +1119,7 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
         {metodo === 'efectivo' && (
           <>
             <Campo label="Monto recibido">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={montoRecibido}
-                onChange={(e) => setMontoRecibido(e.target.value)}
-                className="input"
-              />
+              <InputDinero required value={montoRecibido} onChange={setMontoRecibido} className="input" />
             </Campo>
             {montoRecibido !== '' && (
               faltanteEfectivo > 0 ? (
@@ -1118,12 +1140,9 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
             <div className="grid grid-cols-2 gap-4">
               {METODOS_MIXTO.map((m) => (
                 <Campo key={m.value} label={`Monto en ${m.label.toLowerCase()}`}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <InputDinero
                     value={montosMixto[m.value] || ''}
-                    onChange={(e) => handleCambiarMontoMixto(m.value, e.target.value)}
+                    onChange={(valor) => handleCambiarMontoMixto(m.value, valor)}
                     className="input"
                   />
                 </Campo>

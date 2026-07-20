@@ -43,8 +43,8 @@ async function upsertPedidoFila(pedido) {
   const ahora = new Date().toISOString();
   await localDb.ejecutar(
     `INSERT OR REPLACE INTO pedidos_local
-       (id, mesa_id, numero_jornada, tipo, estado, subtotal, total, descuento, impuesto, propina, notas, creado_offline, sincronizado, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
+       (id, mesa_id, numero_jornada, tipo, estado, subtotal, total, descuento, impuesto, propina, costo_domicilio, notas, creado_offline, sincronizado, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
     [
       pedido.id,
       pedido.mesa_id ?? null,
@@ -56,6 +56,7 @@ async function upsertPedidoFila(pedido) {
       Number(pedido.descuento || 0),
       Number(pedido.impuesto || 0),
       Number(pedido.propina || 0),
+      Number(pedido.costo_domicilio || 0),
       pedido.notas ?? null,
       pedido.created_at || ahora,
       pedido.updated_at || ahora,
@@ -226,6 +227,7 @@ async function construirPedido(pedidoId) {
     descuento: Number(p.descuento),
     impuesto: Number(p.impuesto),
     propina: Number(p.propina),
+    costo_domicilio: Number(p.costo_domicilio),
     notas: p.notas,
     created_at: p.created_at,
     updated_at: p.updated_at,
@@ -242,7 +244,10 @@ async function recalcularPedidoLocal(pedidoId) {
   );
   const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   const subtotal = Number(suma.total);
-  const total = Math.max(0, subtotal - Number(pedido.descuento) + Number(pedido.impuesto) + Number(pedido.propina));
+  const total = Math.max(
+    0,
+    subtotal - Number(pedido.descuento) + Number(pedido.impuesto) + Number(pedido.propina) + Number(pedido.costo_domicilio)
+  );
   await localDb.ejecutar(`UPDATE pedidos_local SET subtotal = ?, total = ?, updated_at = ? WHERE id = ?`, [
     subtotal,
     total,
@@ -522,19 +527,20 @@ async function hCobrar(match, body) {
   const pedido = await localDb.consultarUno(`SELECT * FROM pedidos_local WHERE id = ?`, [pedidoId]);
   if (!pedido) throw new OfflineApiError('Pedido no encontrado');
 
-  const { pagado_con, monto_recibido, descuento, impuesto, propina } = body;
+  const { pagado_con, monto_recibido, descuento, impuesto, propina, costo_domicilio } = body;
   const desc = descuento !== undefined ? Number(descuento) : Number(pedido.descuento);
   const imp = impuesto !== undefined ? Number(impuesto) : Number(pedido.impuesto);
   const prop = propina !== undefined ? Number(propina) : Number(pedido.propina);
-  const total = Math.max(0, Number(pedido.subtotal) - desc + imp + prop);
+  const domi = costo_domicilio !== undefined ? Number(costo_domicilio) : Number(pedido.costo_domicilio);
+  const total = Math.max(0, Number(pedido.subtotal) - desc + imp + prop + domi);
   const recibido = monto_recibido !== undefined ? Number(monto_recibido) : total;
   if (recibido < total) {
     throw new OfflineApiError(`Falta ${(total - recibido).toFixed(2)} para completar el pago`, 400);
   }
 
   await localDb.ejecutar(
-    `UPDATE pedidos_local SET estado = 'pagado', descuento = ?, impuesto = ?, propina = ?, total = ?, updated_at = ? WHERE id = ?`,
-    [desc, imp, prop, total, new Date().toISOString(), pedidoId]
+    `UPDATE pedidos_local SET estado = 'pagado', descuento = ?, impuesto = ?, propina = ?, costo_domicilio = ?, total = ?, updated_at = ? WHERE id = ?`,
+    [desc, imp, prop, domi, total, new Date().toISOString(), pedidoId]
   );
   if (pedido.mesa_id) await actualizarEstadoMesaCache(pedido.mesa_id, 'libre');
   await encolar('pedidos', 'cobrar', {
@@ -544,6 +550,7 @@ async function hCobrar(match, body) {
     descuento: desc,
     impuesto: imp,
     propina: prop,
+    costo_domicilio: domi,
   });
 
   return { pedido: await construirPedido(pedidoId) };

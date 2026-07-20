@@ -222,7 +222,7 @@ async function reabrirCuenta(req, res) {
 }
 
 async function cobrar(req, res) {
-  const { pagado_con, monto_recibido, descuento, impuesto, propina } = req.body;
+  const { pagado_con, monto_recibido, descuento, impuesto, propina, costo_domicilio } = req.body;
 
   if (!pagado_con || !METODOS_PAGO_VALIDOS.includes(pagado_con)) {
     return error(res, `Método de pago inválido. Valores permitidos: ${METODOS_PAGO_VALIDOS.join(', ')}`, 400);
@@ -231,7 +231,7 @@ async function cobrar(req, res) {
   try {
     const pedido = await pedidoModel.cobrar(
       req.params.id,
-      { pagado_con, monto_recibido, descuento, impuesto, propina },
+      { pagado_con, monto_recibido, descuento, impuesto, propina, costo_domicilio },
       req.usuario.restauranteId
     );
     if (!pedido) {

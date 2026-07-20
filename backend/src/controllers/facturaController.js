@@ -111,16 +111,21 @@ async function precuenta(req, res) {
     }
     const restaurante = await restauranteModel.buscarPorId(req.usuario.restauranteId);
 
-    const { descuento, impuesto, propina } = req.body || {};
+    const { descuento, impuesto, propina, costo_domicilio } = req.body || {};
     const pedidoConTotales = {
       ...pedido,
       descuento: descuento !== undefined ? Number(descuento) : Number(pedido.descuento),
       impuesto: impuesto !== undefined ? Number(impuesto) : Number(pedido.impuesto),
       propina: propina !== undefined ? Number(propina) : Number(pedido.propina),
+      costo_domicilio: costo_domicilio !== undefined ? Number(costo_domicilio) : Number(pedido.costo_domicilio),
     };
     pedidoConTotales.total = Math.max(
       0,
-      Number(pedido.subtotal) - pedidoConTotales.descuento + pedidoConTotales.impuesto + pedidoConTotales.propina
+      Number(pedido.subtotal) -
+        pedidoConTotales.descuento +
+        pedidoConTotales.impuesto +
+        pedidoConTotales.propina +
+        pedidoConTotales.costo_domicilio
     );
 
     const html = generarHTMLPrecuenta(pedidoConTotales, restaurante);

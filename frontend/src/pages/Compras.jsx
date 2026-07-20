@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import Spinner from '../components/Spinner';
 import Campo from '../components/Campo';
 import BotonesFormulario from '../components/BotonesFormulario';
+import InputDinero from '../components/InputDinero';
 import { formatearPrecio } from '../utils/formato';
 import { getIngredientes, getAlertas } from '../utils/inventario';
 import { getOrdenes, getSugeridas, getOrden, crearOrden, actualizarOrden, recibirOrden, cancelarOrden } from '../utils/compras';
@@ -462,13 +463,10 @@ function FormularioNuevaOrden({ onGuardar, onCancelar }) {
                   onChange={(e) => actualizarItem(index, { cantidad_solicitada: e.target.value })}
                   className="input col-span-3"
                 />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <InputDinero
                   placeholder="Costo unit."
                   value={item.costo_unitario}
-                  onChange={(e) => actualizarItem(index, { costo_unitario: e.target.value })}
+                  onChange={(valor) => actualizarItem(index, { costo_unitario: valor })}
                   className="input col-span-3"
                 />
                 <span className="col-span-1 text-right text-xs text-[var(--text-secondary)]">{formatearPrecio(subtotal)}</span>

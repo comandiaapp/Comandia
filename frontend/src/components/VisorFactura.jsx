@@ -9,7 +9,14 @@ function VisorFactura({ titulo = 'Factura', html, onClose, textoCerrar = 'Cerrar
         @media print {
           body * { visibility: hidden; }
           #ticket-imprimible, #ticket-imprimible * { visibility: visible; }
-          #ticket-imprimible { position: absolute; left: 0; top: 0; }
+          /* El área realmente imprimible de un rollo térmico de 80mm es
+             ~72mm (el cabezal deja ~4mm de margen físico no imprimible a
+             cada lado) — el ticket generado en generarTicket.js ya mide
+             72mm, así que 4mm de left lo deja exactamente dentro de esa
+             zona (4mm + 72mm = 76mm, dentro de los 80mm de @page) sin que
+             el navegador tenga que reescalar para que quepa. Si se cambia
+             el ancho en generarTicket.js, cambiar este valor también. */
+          #ticket-imprimible { position: absolute; left: 4mm; top: 0; }
           @page { size: 80mm auto; margin: 0; }
         }
       `}</style>

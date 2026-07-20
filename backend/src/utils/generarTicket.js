@@ -4,6 +4,15 @@
 
 const QRCode = require('qrcode');
 
+// 72mm, no 80mm: es el área realmente imprimible de un rollo térmico de
+// 80mm (el cabezal deja ~4mm de margen físico no imprimible a cada lado).
+// Debe coincidir con el ancho que usa VisorFactura.jsx al posicionar
+// #ticket-imprimible en @media print — si se cambia aquí, cambiar allá.
+const ESTILO_TICKET =
+  "font-family: 'Courier New', Courier, monospace; font-size: 11px; font-weight: bold; " +
+  'line-height: 1.35; width: 72mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; ' +
+  'word-break: break-word; text-shadow: 0.3px 0 currentColor, -0.3px 0 currentColor;';
+
 const ANCHO = 40;
 const COL_REG = 4;
 const COL_DESC = 15;
@@ -184,7 +193,7 @@ function logoHTML(logoUrl) {
 }
 
 function envolverHTML(texto, { titulo, logoUrl }) {
-  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(titulo)}">${logoHTML(logoUrl)}<pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre></div>`;
+  return `<div style="${ESTILO_TICKET}" aria-label="${escaparHTML(titulo)}">${logoHTML(logoUrl)}<pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre></div>`;
 }
 
 // Igual formato de fecha/hora que usa facturaModel.generarCUFE (para que el
@@ -404,7 +413,7 @@ async function generarHTMLTicket(factura, restaurante, pedido) {
   const bloque = (texto) =>
     `<pre style="margin:0; font-family: inherit; font-size: inherit; white-space: pre-wrap;">${escaparHTML(texto)}</pre>`;
 
-  return `<div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; width: 80mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; word-break: break-word;" aria-label="${escaparHTML(`Factura ${factura.numero_factura}`)}">${logoHTML(restaurante.logo_url)}${bloque(antes.join('\n'))}${qrHTML}${bloque(despues.join('\n'))}</div>`;
+  return `<div style="${ESTILO_TICKET}" aria-label="${escaparHTML(`Factura ${factura.numero_factura}`)}">${logoHTML(restaurante.logo_url)}${bloque(antes.join('\n'))}${qrHTML}${bloque(despues.join('\n'))}</div>`;
 }
 
 function generarHTMLPrecuenta(pedido, restaurante) {

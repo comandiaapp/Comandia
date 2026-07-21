@@ -376,7 +376,6 @@ function POS({ mesaId, onCerrar = () => {} }) {
   const itemsPendientes = pedido?.items?.filter((item) => item.estado === 'pendiente').length || 0;
   const descuentoMonto =
     descuentoModo === 'porcentaje' ? (subtotal * Number(descuentoValor || 0)) / 100 : Number(descuentoValor || 0);
-  const esMesaDomicilio = Boolean(mesa?.numero?.startsWith('Domicilio-'));
   const totalCalculado = Math.max(
     0,
     subtotal - descuentoMonto + Number(impuesto || 0) + Number(propina || 0) + Number(domicilio || 0)
@@ -487,17 +486,15 @@ function POS({ mesaId, onCerrar = () => {} }) {
             />
           </div>
 
-          {esMesaDomicilio && (
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-[var(--text-secondary)]">Domicilio</span>
-              <InputDinero
-                value={domicilio}
-                onChange={setDomicilio}
-                placeholder="0"
-                className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-              />
-            </div>
-          )}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-[var(--accent)]">Domicilio</span>
+            <InputDinero
+              value={domicilio}
+              onChange={setDomicilio}
+              placeholder="0"
+              className="w-32 rounded-md border-2 border-[var(--accent)] bg-[var(--input-bg)] px-3 py-2 text-right text-base font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            />
+          </div>
 
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
             <span className="text-base font-semibold text-[var(--text-primary)]">TOTAL</span>

@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const env = require('./src/config/env');
 const routes = require('./src/routes');
 const { notFound, errorHandler } = require('./src/middlewares/errorHandler');
+const { aplicarEsquema } = require('./src/config/initDB');
 
 const app = express();
 
@@ -49,6 +50,16 @@ if (env.nodeEnv === 'production') {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(env.port, '0.0.0.0', () => {
-  console.log(`Comandia backend corriendo en http://localhost:${env.port}`);
-});
+// Aplica migraciones pendientes (ALTER TABLE ... IF NOT EXISTS, etc.) antes
+// de aceptar tráfico, para que un cambio de esquema nunca quede desfasado
+// entre lo que despliega Railway y lo que corre "npm run db:init" a mano.
+aplicarEsquema()
+  .then(() => {
+    app.listen(env.port, '0.0.0.0', () => {
+      console.log(`Comandia backend corriendo en http://localhost:${env.port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Error aplicando el esquema de base de datos:', err.message || err);
+    process.exit(1);
+  });

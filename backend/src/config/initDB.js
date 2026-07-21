@@ -236,16 +236,29 @@ async function seedCodigoAccesoInicial() {
   console.log(`  código de acceso "${CODIGO_FUNDADOR}" creado`);
 }
 
-async function initDB() {
+// Aplica schema.sql (CREATE/ALTER, todo idempotente) + las migraciones que
+// IF NOT EXISTS no puede expresar. Se usa tanto en el CLI de setup (abajo)
+// como al arrancar el servidor (server.js), para que un ALTER TABLE nuevo
+// como el de costo_domicilio quede aplicado en cuanto se despliega, sin
+// depender de que alguien corra "npm run db:init" a mano contra producción.
+async function aplicarEsquema() {
   const schemaPath = path.join(__dirname, 'schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf8');
 
-  const statements = schema
+  // Quita los comentarios "-- ..." línea por línea antes de partir por ";":
+  // un comentario que mencione un punto y coma en prosa (ej. "el DEFAULT
+  // (...); ahora pedidoModel...") rompía el split y hacía fallar --
+  // silenciosamente, a mitad de archivo -- todos los ALTER TABLE que venían
+  // después (incluido costo_domicilio).
+  const schemaSinComentarios = schema
+    .split('\n')
+    .map((linea) => linea.replace(/--.*$/, ''))
+    .join('\n');
+
+  const statements = schemaSinComentarios
     .split(';')
     .map((statement) => statement.trim())
     .filter(Boolean);
-
-  console.log('Inicializando base de datos de Comandia...\n');
 
   await migrarNumeroPedidos();
 
@@ -264,18 +277,30 @@ async function initDB() {
     }
   }
 
+  await backfillNumeroJornada();
+}
+
+async function initDB() {
+  console.log('Inicializando base de datos de Comandia...\n');
+
+  await aplicarEsquema();
+
   console.log('\nBase de datos inicializada correctamente.');
 
-  await backfillNumeroJornada();
   await seedCodigoAccesoInicial();
   await seedDatosEjemplo();
 }
 
-initDB()
-  .catch((err) => {
-    console.error('Error al inicializar la base de datos:', err.message || err.code || err);
-    process.exitCode = 1;
-  })
-  .finally(() => pool.end());
+// Solo se auto-ejecuta si se invoca como CLI ("node initDB.js" / "npm run
+// db:init"); al hacer require() desde server.js no debe correr el seed de
+// datos de ejemplo ni cerrar el pool compartido.
+if (require.main === module) {
+  initDB()
+    .catch((err) => {
+      console.error('Error al inicializar la base de datos:', err.message || err.code || err);
+      process.exitCode = 1;
+    })
+    .finally(() => pool.end());
+}
 
-module.exports = initDB;
+module.exports = { initDB, aplicarEsquema };

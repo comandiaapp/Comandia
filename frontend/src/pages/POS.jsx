@@ -439,66 +439,9 @@ function POS({ mesaId, onCerrar = () => {} }) {
             <span>{formatearPrecio(subtotal)}</span>
           </div>
 
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-[var(--text-secondary)]">Descuento</span>
-            <div className="flex items-center gap-1">
-              <select
-                value={descuentoModo}
-                onChange={(e) => setDescuentoModo(e.target.value)}
-                className="rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-1 py-1 text-xs text-[var(--text-primary)]"
-              >
-                <option value="monto">$</option>
-                <option value="porcentaje">%</option>
-              </select>
-              {descuentoModo === 'monto' ? (
-                <InputDinero
-                  value={descuentoValor}
-                  onChange={setDescuentoValor}
-                  className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-                />
-              ) : (
-                <input
-                  type="number"
-                  min="0"
-                  value={descuentoValor}
-                  onChange={(e) => setDescuentoValor(e.target.value)}
-                  className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-[var(--text-secondary)]">Impuesto</span>
-            <InputDinero
-              value={impuesto}
-              onChange={setImpuesto}
-              className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-[var(--text-secondary)]">Propina</span>
-            <InputDinero
-              value={propina}
-              onChange={setPropina}
-              className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-[var(--accent)]">Domicilio</span>
-            <InputDinero
-              value={domicilio}
-              onChange={setDomicilio}
-              placeholder="0"
-              className="w-32 rounded-md border-2 border-[var(--accent)] bg-[var(--input-bg)] px-3 py-2 text-right text-base font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            />
-          </div>
-
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
             <span className="text-base font-semibold text-[var(--text-primary)]">TOTAL</span>
-            <span className="text-2xl font-bold text-[var(--accent)]">{formatearPrecio(totalCalculado)}</span>
+            <span className="text-2xl font-bold text-[var(--accent)]">{formatearPrecio(subtotal)}</span>
           </div>
 
           <div className="space-y-2 pt-1">
@@ -647,6 +590,15 @@ function POS({ mesaId, onCerrar = () => {} }) {
       {modalCobro && (
         <ModalCobro
           pedido={pedido}
+          subtotal={subtotal}
+          descuentoModo={descuentoModo}
+          onCambiarDescuentoModo={setDescuentoModo}
+          descuentoValor={descuentoValor}
+          onCambiarDescuentoValor={setDescuentoValor}
+          impuesto={Number(impuesto || 0)}
+          onCambiarImpuesto={setImpuesto}
+          domicilio={Number(domicilio || 0)}
+          onCambiarDomicilio={setDomicilio}
           total={totalCalculado}
           baseParaPropina={Math.max(0, subtotal - descuentoMonto + Number(impuesto || 0))}
           propina={Number(propina || 0)}
@@ -1005,7 +957,24 @@ function ModalPrecuenta({
   );
 }
 
-function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina, onCobrar, onCancelar }) {
+function ModalCobro({
+  pedido,
+  subtotal,
+  descuentoModo,
+  onCambiarDescuentoModo,
+  descuentoValor,
+  onCambiarDescuentoValor,
+  impuesto,
+  onCambiarImpuesto,
+  domicilio,
+  onCambiarDomicilio,
+  total,
+  baseParaPropina,
+  propina,
+  onCambiarPropina,
+  onCobrar,
+  onCancelar,
+}) {
   const [metodo, setMetodo] = useState('efectivo');
   const [montoRecibido, setMontoRecibido] = useState('');
   const [montosMixto, setMontosMixto] = useState({});
@@ -1048,6 +1017,59 @@ function ModalCobro({ pedido, total, baseParaPropina, propina, onCambiarPropina,
               <span>{formatearPrecio(item.subtotal)}</span>
             </div>
           ))}
+        </div>
+
+        <div className="flex justify-between text-sm text-[var(--text-secondary)]">
+          <span>Subtotal</span>
+          <span>{formatearPrecio(subtotal)}</span>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-[var(--text-secondary)]">Descuento</span>
+          <div className="flex items-center gap-1">
+            <select
+              value={descuentoModo}
+              onChange={(e) => onCambiarDescuentoModo(e.target.value)}
+              className="rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-1 py-1 text-xs text-[var(--text-primary)]"
+            >
+              <option value="monto">$</option>
+              <option value="porcentaje">%</option>
+            </select>
+            {descuentoModo === 'monto' ? (
+              <InputDinero
+                value={descuentoValor}
+                onChange={onCambiarDescuentoValor}
+                className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              />
+            ) : (
+              <input
+                type="number"
+                min="0"
+                value={descuentoValor}
+                onChange={(e) => onCambiarDescuentoValor(e.target.value)}
+                className="w-20 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-[var(--text-secondary)]">Impuesto</span>
+          <InputDinero
+            value={impuesto}
+            onChange={onCambiarImpuesto}
+            className="w-24 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-right text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-[var(--accent)]">Domicilio</span>
+          <InputDinero
+            value={domicilio}
+            onChange={onCambiarDomicilio}
+            placeholder="0"
+            className="w-32 rounded-md border-2 border-[var(--accent)] bg-[var(--input-bg)] px-3 py-2 text-right text-base font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          />
         </div>
 
         <Campo label="¿El cliente deja propina?">

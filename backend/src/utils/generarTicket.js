@@ -9,26 +9,30 @@ const QRCode = require('qrcode');
 // Debe coincidir con el ancho que usa VisorFactura.jsx al posicionar
 // #ticket-imprimible en @media print — si se cambia aquí, cambiar allá.
 const ESTILO_TICKET =
-  "font-family: 'Courier New', Courier, monospace; font-size: 11px; font-weight: bold; " +
-  'line-height: 1.35; width: 72mm; padding: 6px; box-sizing: border-box; white-space: pre-wrap; ' +
+  "font-family: 'Courier New', Courier, monospace; font-size: 20px; font-weight: bold; " +
+  'line-height: 1.35; width: 72mm; padding: 4px; box-sizing: border-box; white-space: pre-wrap; ' +
   'word-break: break-word; text-shadow: 0.3px 0 currentColor, -0.3px 0 currentColor;';
 
-const ANCHO = 40;
-const COL_REG = 4;
-const COL_DESC = 15;
-const COL_CANT = 5;
+// A ~1.8x el tamaño de letra original (11px), la grilla de 40 caracteres ya
+// no cabe en los 72mm imprimibles: un carácter monoespacio a este tamaño mide
+// ~3.2mm, así que el máximo que entra con margen de seguridad es ~21
+// caracteres. Por eso cada ítem pasa de "nombre + cant + vunit + total" en
+// una sola línea a dos líneas (nombre arriba, cant/vunit/total abajo): así
+// ninguna línea individual necesita más de ~20 caracteres. Si se vuelve a
+// achicar la letra, ANCHO puede subir de nuevo y las filas volver a una línea.
+const ANCHO = 20;
+const COL_REG = 3;
+const COL_CANT = 4;
 const COL_VUNIT = 8;
 const COL_TOTAL = 8;
 
 // Columnas de la tabla de ítems de la factura DIAN (más angostas que las de
-// la precuenta porque suman Código/VR/Imp.): Reg+Código+Descripción van en
-// la(s) línea(s) de nombre, Cant+Precio/U+Total en la última. VR e Imp. no
-// caben en la grilla de 40 caracteres junto a todo lo demás, así que van en
-// una línea de anotación debajo de cada ítem — así se ve una factura DIAN
-// real impresa en una tirilla de 80mm (no como tabla rígida de 8 columnas).
+// la precuenta porque suman Código/VR/Imp.): Reg+Código van antes de la(s)
+// línea(s) de nombre, Cant+Precio/U+Total en su propia línea debajo. VR e
+// Imp. van en una línea de anotación aparte — así se ve una factura DIAN real
+// impresa en una tirilla de 80mm (no como tabla rígida de 8 columnas).
 const COLF_REG = 3;
 const COLF_COD = 6;
-const COLF_DESC = 11;
 const COLF_CANT = 4;
 const COLF_VUNIT = 8;
 const COLF_TOTAL = 8;
@@ -58,12 +62,34 @@ function moneda(valor) {
   return (entero < 0 ? '-$' : '$') + texto;
 }
 
+// Envuelve por palabras antes de centrar: a ANCHO=20 varios textos fijos del
+// ticket (avisos legales, "Esta pre-cuenta no reemplaza...") ya no caben en
+// una sola línea; cortarlos con slice() perdería texto en vez de mostrarlo
+// en la línea siguiente.
 function centrar(texto, ancho = ANCHO) {
-  const str = String(texto);
-  if (str.length >= ancho) return str.slice(0, ancho);
-  const espacio = ancho - str.length;
-  const izq = Math.floor(espacio / 2);
-  return ' '.repeat(izq) + str + ' '.repeat(espacio - izq);
+  const palabras = String(texto).split(' ');
+  const lineasEnvueltas = [];
+  let actual = '';
+  for (const palabra of palabras) {
+    const candidato = actual ? `${actual} ${palabra}` : palabra;
+    if (candidato.length > ancho && actual) {
+      lineasEnvueltas.push(actual);
+      actual = palabra;
+    } else {
+      actual = candidato;
+    }
+  }
+  if (actual) lineasEnvueltas.push(actual);
+  if (lineasEnvueltas.length === 0) lineasEnvueltas.push('');
+
+  return lineasEnvueltas
+    .map((linea) => {
+      if (linea.length >= ancho) return linea.slice(0, ancho);
+      const espacio = ancho - linea.length;
+      const izq = Math.floor(espacio / 2);
+      return ' '.repeat(izq) + linea + ' '.repeat(espacio - izq);
+    })
+    .join('\n');
 }
 
 function fila(izquierda, derecha, ancho = ANCHO) {
@@ -80,24 +106,26 @@ function separador(char = '─', ancho = ANCHO) {
 function encabezadoItems() {
   return (
     'Reg'.padEnd(COL_REG) +
-    'Descripción'.padEnd(COL_DESC) +
+    'Descripción\n' +
     'Cant'.padStart(COL_CANT) +
     'V.Unit'.padStart(COL_VUNIT) +
     'Total'.padStart(COL_TOTAL)
   );
 }
 
-// Cada item se imprime con su número de línea (Reg) y nombre (envuelto en
-// varias líneas si no cabe en la columna de descripción), con cantidad,
-// precio unitario y subtotal alineados a la derecha en la última línea.
+// Cada ítem se imprime con su número de línea (Reg) y nombre (envuelto en
+// varias líneas si no cabe en el ancho disponible), y en una línea aparte
+// debajo cantidad, precio unitario y subtotal alineados a la derecha — a
+// este tamaño de letra ya no caben en la misma línea que el nombre.
 function filaItem(item, numero) {
+  const anchoDesc = ANCHO - COL_REG;
   const regTxt = String(numero).padEnd(COL_REG);
   const palabras = String(item.nombre_producto).split(' ');
   const lineasDesc = [];
   let actual = '';
   for (const palabra of palabras) {
     const candidato = actual ? `${actual} ${palabra}` : palabra;
-    if (candidato.length > COL_DESC && actual) {
+    if (candidato.length > anchoDesc && actual) {
       lineasDesc.push(actual);
       actual = palabra;
     } else {
@@ -107,20 +135,12 @@ function filaItem(item, numero) {
   if (actual) lineasDesc.push(actual);
   if (lineasDesc.length === 0) lineasDesc.push('');
 
-  const lineas = [];
-  lineasDesc.forEach((desc, idx) => {
-    const prefijo = idx === 0 ? regTxt : ' '.repeat(COL_REG);
-    if (idx === lineasDesc.length - 1) {
-      const cant = `${item.cantidad}x`.padStart(COL_CANT);
-      const vunit = moneda(item.precio_unitario).padStart(COL_VUNIT);
-      const total = moneda(item.subtotal).padStart(COL_TOTAL);
-      lineas.push(prefijo + desc.padEnd(COL_DESC) + cant + vunit + total);
-    } else {
-      lineas.push(
-        prefijo + desc.padEnd(COL_DESC) + ' '.repeat(COL_CANT) + ' '.repeat(COL_VUNIT) + ' '.repeat(COL_TOTAL)
-      );
-    }
-  });
+  const lineas = lineasDesc.map((desc, idx) => (idx === 0 ? regTxt : ' '.repeat(COL_REG)) + desc);
+
+  const cant = `${item.cantidad}x`.padStart(COL_CANT);
+  const vunit = moneda(item.precio_unitario).padStart(COL_VUNIT);
+  const total = moneda(item.subtotal).padStart(COL_TOTAL);
+  lineas.push(cant + vunit + total);
 
   for (const mod of item.modificadores || []) {
     lineas.push(' '.repeat(COL_REG) + `+ ${mod.nombre_opcion}`.slice(0, ANCHO - COL_REG));
@@ -252,19 +272,20 @@ function encabezadoItemsFactura() {
   return (
     '#'.padEnd(COLF_REG) +
     'Cód.'.padEnd(COLF_COD) +
-    'Descrip.'.padEnd(COLF_DESC) +
+    'Descrip.\n' +
     'Cant'.padStart(COLF_CANT) +
     'P.Unit'.padStart(COLF_VUNIT) +
     'Total'.padStart(COLF_TOTAL)
   );
 }
 
-// Tabla de ítems de la factura DIAN: Reg+Código+Descripción en la(s)
-// línea(s) de nombre, Cant+Precio/U+Total alineados en la última. VR
-// (tarifa) e Imp. (código de impuesto) no caben en la grilla de 40
-// caracteres junto a todo lo demás, así que van en una línea de anotación
-// debajo del ítem — así se ve una factura DIAN real impresa en 80mm.
+// Tabla de ítems de la factura DIAN: Reg+Código antes de la(s) línea(s) de
+// nombre, Cant+Precio/U+Total alineados en su propia línea debajo (a este
+// tamaño de letra ya no caben junto al nombre). VR (tarifa) e Imp. (código
+// de impuesto) van en una línea de anotación aparte — así se ve una factura
+// DIAN real impresa en 80mm.
 function filaItemFactura(item, numero, impuestoPorcentaje) {
+  const colfDesc = ANCHO - COLF_REG - COLF_COD;
   const indent = ' '.repeat(COLF_REG + COLF_COD);
   const regTxt = String(numero).padEnd(COLF_REG);
   const codTxt = codigoInterno(item);
@@ -273,7 +294,7 @@ function filaItemFactura(item, numero, impuestoPorcentaje) {
   let actual = '';
   for (const palabra of palabras) {
     const candidato = actual ? `${actual} ${palabra}` : palabra;
-    if (candidato.length > COLF_DESC && actual) {
+    if (candidato.length > colfDesc && actual) {
       lineasDesc.push(actual);
       actual = palabra;
     } else {
@@ -283,16 +304,15 @@ function filaItemFactura(item, numero, impuestoPorcentaje) {
   if (actual) lineasDesc.push(actual);
   if (lineasDesc.length === 0) lineasDesc.push('');
 
-  const lineas = lineasDesc.map((desc, idx) =>
-    (idx === 0 ? regTxt + codTxt : indent) + desc.padEnd(COLF_DESC)
-  );
+  const lineas = lineasDesc.map((desc, idx) => (idx === 0 ? regTxt + codTxt : indent) + desc);
+
   const cant = `${item.cantidad}x`.padStart(COLF_CANT);
   const vunit = moneda(item.precio_unitario).padStart(COLF_VUNIT);
   const total = moneda(item.subtotal).padStart(COLF_TOTAL);
-  lineas[lineas.length - 1] += cant + vunit + total;
+  lineas.push(cant + vunit + total);
 
   const vr = `${Number(impuestoPorcentaje)}%`;
-  lineas.push(`${indent}VR:${vr}  Imp:${codigoImpuesto(impuestoPorcentaje)}${Number(impuestoPorcentaje)}`);
+  lineas.push(`VR:${vr}  Imp:${codigoImpuesto(impuestoPorcentaje)}${Number(impuestoPorcentaje)}`);
 
   for (const mod of item.modificadores || []) {
     lineas.push(indent + `+ ${mod.nombre_opcion}`.slice(0, ANCHO - indent.length));
